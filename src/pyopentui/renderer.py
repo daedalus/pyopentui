@@ -115,11 +115,11 @@ class CliRenderer:
 
     def setup(self) -> None:
         """Set up the terminal for rendering."""
-        self._stdout.write(ANSI.clear_screen())
-        self._stdout.write(ANSI.set_cursor_position(1, 1))
-
         if self._use_alternate_screen:
             self._stdout.write(ANSI.set_alternate_screen(True))
+
+        self._stdout.write(ANSI.clear_screen())
+        self._stdout.write(ANSI.set_cursor_position(1, 1))
 
         if self._use_mouse:
             self._stdout.write(ANSI.enable_mouse_tracking())
@@ -127,8 +127,11 @@ class CliRenderer:
         self._stdout.write(ANSI.set_cursor_visible(True))
         self._stdout.flush()
 
-        self._old_term_settings = termios.tcgetattr(self._stdin.fileno())
-        tty.setcbreak(self._stdin.fileno())
+        try:
+            self._old_term_settings = termios.tcgetattr(self._stdin.fileno())
+            tty.setcbreak(self._stdin.fileno())
+        except termios.error:
+            pass
 
         self._root = RootRenderable(self, self._width, self._height)
 
@@ -143,7 +146,10 @@ class CliRenderer:
         self._stdout.flush()
 
         if hasattr(self, "_old_term_settings"):
-            termios.tcsetattr(self._stdin.fileno(), termios.TCSADRAIN, self._old_term_settings)
+            try:
+                termios.tcsetattr(self._stdin.fileno(), termios.TCSADRAIN, self._old_term_settings)
+            except termios.error:
+                pass
 
     def on(self, event: str, callback: Callable) -> None:
         if event not in self._listeners:
