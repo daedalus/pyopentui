@@ -3,6 +3,17 @@
 
 import sys
 import os
+import tempfile
+
+
+def check_tty():
+    """Check if running in a proper TTY environment."""
+    if not sys.stdin.isatty():
+        return False
+    if not sys.stdout.isatty():
+        return False
+    return True
+
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -318,6 +329,11 @@ def create_demo():
 
 
 def main():
+    if not check_tty():
+        print("Error: PyOpenTUI requires a terminal environment.")
+        print("Please run this in an interactive terminal.")
+        sys.exit(1)
+
     demo = create_demo()
 
     try:

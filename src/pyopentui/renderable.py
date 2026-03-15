@@ -498,8 +498,6 @@ class RootRenderable(Renderable):
 
         self.on_update(delta_time)
 
-        render_list.append({"action": "render", "renderable": self})
-
         sorted_children = sorted(self._children, key=lambda c: c.z_index)
         for child in sorted_children:
             child.update_layout(delta_time, render_list)

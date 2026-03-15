@@ -17,11 +17,12 @@ from .renderables import (
     BoxRenderable,
     TextRenderable,
     ScrollBox,
+    ScrollBar,
     Input,
     Textarea,
 )
 
-__version__ = "0.1.0.1"
+__version__ = "0.1.0"
 
 __all__ = [
     "RGBA",
@@ -40,6 +41,7 @@ __all__ = [
     "BoxRenderable",
     "TextRenderable",
     "ScrollBox",
+    "ScrollBar",
     "Input",
     "Textarea",
 ]
