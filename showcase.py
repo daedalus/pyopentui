@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PyOpenTUI Showcase - Demonstrates all features (preview mode)."""
+"""PyOpenTUI Interactive Showcase - Works in SSH."""
 
 import sys
 import os
@@ -20,346 +20,149 @@ from pyopentui import (
 )
 from pyopentui.buffer import Buffer
 from pyopentui.renderable import RootRenderable
+from pyopentui.ansi import ANSI
 
 
-def create_demo():
-    buf = Buffer(100, 35)
-    buf.clear(RGBA.from_hex("#0f0f23"))
+class SimpleTUI:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.buf = Buffer(width, height)
+        self.running = False
 
-    # Create a mock context for renderables
-    class MockCtx:
-        width = 100
-        height = 35
-        _background_color = RGBA.from_hex("#0f0f23")
+        class MockCtx:
+            def __init__(self, w, h):
+                self.width = w
+                self.height = h
+                self._background_color = RGBA.from_hex("#0f0f23")
 
-        def request_render(self):
-            pass
+            def request_render(self):
+                pass
 
-        def focus(self, r):
-            pass
+            def focus(self, r):
+                pass
 
-        def blur(self):
-            pass
+            def blur(self):
+                pass
 
-        def emit(self, name, data):
-            pass
+            def emit(self, name, data):
+                pass
 
-    ctx = MockCtx()
-    root = RootRenderable(ctx, 100, 35)
+        self.ctx = MockCtx(width, height)
+        self.root = RootRenderable(self.ctx, width, height)
 
-    header = BoxRenderable(
-        ctx,
-        x=1,
-        y=1,
-        width=98,
-        height=3,
-        border=True,
-        border_color=RGBA.from_hex("#00ff00"),
-        background_color=RGBA.from_hex("#1a1a2e"),
-    )
+    def start(self):
+        self.running = True
 
-    title = TextRenderable(
-        ctx,
-        "╔══════════════════════════════════════════════════════════════════╗\n"
-        "║           🎨 PyOpenTUI Showcase - All Features Demo            ║\n"
-        "╚══════════════════════════════════════════════════════════════════╝",
-        color=RGBA.from_hex("#00ff00"),
-        bold=True,
-    )
+        # Enable alternate screen
+        sys.stdout.write("\033[?1049h")
+        sys.stdout.write(ANSI.clear_screen())
+        sys.stdout.flush()
 
-    header.add(title)
-    root.add(header)
+        self._setup_ui()
 
-    left_panel = BoxRenderable(
-        ctx,
-        x=1,
-        y=5,
-        width=47,
-        height=28,
-        border=True,
-        border_color=RGBA.from_hex("#ff6b6b"),
-        background_color=RGBA.from_hex("#16213e"),
-    )
+        while self.running:
+            self._process_input()
+            self._render()
+            time.sleep(0.05)  # ~20fps
 
-    left_title = TextRenderable(
-        ctx,
-        "📦 Box Components",
-        color=RGBA.from_hex("#ff6b6b"),
-        bold=True,
-    )
-    left_panel.add(left_title)
+        self._cleanup()
 
-    box1 = BoxRenderable(
-        ctx,
-        x=2,
-        y=3,
-        width=20,
-        height=6,
-        border=True,
-        border_color=RGBA.from_hex("#4ecdc4"),
-        background_color=RGBA.from_hex("#1a1a2e"),
-        title="Simple Box",
-    )
-    box1_text = TextRenderable(
-        ctx,
-        "Box with border\nand title!",
-        color=RGBA.from_hex("#4ecdc4"),
-    )
-    box1.add(box1_text)
-    left_panel.add(box1)
-
-    box2 = BoxRenderable(
-        ctx,
-        x=24,
-        y=3,
-        width=20,
-        height=6,
-        border=True,
-        border_color=RGBA.from_hex("#ffe66d"),
-        background_color=RGBA.from_hex("#1a1a2e"),
-    )
-    box2_text = TextRenderable(
-        ctx,
-        "Colored Box\nYellow border\nDark bg",
-        color=RGBA.from_hex("#ffe66d"),
-    )
-    box2.add(box2_text)
-    left_panel.add(box2)
-
-    box3 = BoxRenderable(
-        ctx,
-        x=2,
-        y=11,
-        width=20,
-        height=8,
-        border=True,
-        border_color=RGBA.from_hex("#95e1d3"),
-        background_color=RGBA.from_hex("#0f0f23"),
-    )
-    box3_title = TextRenderable(
-        ctx,
-        "Text Styles",
-        color=RGBA.from_hex("#95e1d3"),
-        bold=True,
-    )
-    box3.add(box3_title)
-
-    bold_text = TextRenderable(
-        ctx,
-        "This is BOLD text",
-        color=RGBA.from_hex("#ffffff"),
-        bold=True,
-    )
-    box3.add(bold_text)
-
-    italic_text = TextRenderable(
-        ctx,
-        "This is italic text",
-        color=RGBA.from_hex("#aaaaaa"),
-        italic=True,
-    )
-    box3.add(italic_text)
-
-    underline_text = TextRenderable(
-        ctx,
-        "This is underline",
-        color=RGBA.from_hex("#666666"),
-        underline=True,
-    )
-    box3.add(underline_text)
-
-    left_panel.add(box3)
-
-    input_box = BoxRenderable(
-        ctx,
-        x=24,
-        y=11,
-        width=20,
-        height=8,
-        border=True,
-        border_color=RGBA.from_hex("#a8e6cf"),
-        background_color=RGBA.from_hex("#1a1a2e"),
-        title="Input",
-    )
-
-    input_field = Input(
-        ctx,
-        placeholder="Type here...",
-        max_length=15,
-    )
-    input_box.add(input_field)
-
-    right_box = TextRenderable(
-        ctx,
-        "Input focused!",
-        color=RGBA.from_hex("#a8e6cf"),
-    )
-    input_box.add(right_box)
-    left_panel.add(input_box)
-
-    root.add(left_panel)
-
-    right_panel = BoxRenderable(
-        ctx,
-        x=50,
-        y=5,
-        width=49,
-        height=28,
-        border=True,
-        border_color=RGBA.from_hex("#6c5ce7"),
-        background_color=RGBA.from_hex("#16213e"),
-    )
-
-    right_title = TextRenderable(
-        ctx,
-        "📝 Text & Components",
-        color=RGBA.from_hex("#6c5ce7"),
-        bold=True,
-    )
-    right_panel.add(right_title)
-
-    colors_box = BoxRenderable(
-        ctx,
-        x=2,
-        y=3,
-        width=44,
-        height=8,
-        border=True,
-        border_color=RGBA.from_hex("#fd79a8"),
-        background_color=RGBA.from_hex("#1a1a2e"),
-        title="Color Palette",
-    )
-
-    colors = [
-        ("#ff6b6b", "Red"),
-        ("#4ecdc4", "Cyan"),
-        ("#ffe66d", "Yellow"),
-        ("#95e1d3", "Mint"),
-        ("#a8e6cf", "Green"),
-        ("#6c5ce7", "Purple"),
-    ]
-
-    for i, (color, name) in enumerate(colors):
-        x_pos = 2 + (i % 3) * 14
-        y_pos = 2 + (i // 3) * 3
-
-        color_box = BoxRenderable(
-            ctx,
-            x=x_pos,
-            y=y_pos,
-            width=12,
-            height=2,
-            background_color=RGBA.from_hex(color),
+    def _setup_ui(self):
+        header = BoxRenderable(
+            self.ctx,
+            x=1,
+            y=1,
+            width=98,
+            height=3,
+            border=True,
+            border_color=RGBA.from_hex("#00ff00"),
+            background_color=RGBA.from_hex("#1a1a2e"),
         )
-        color_text = TextRenderable(
-            ctx,
-            name,
-            color=RGBA.from_hex("#000000"),
+        title = TextRenderable(
+            self.ctx,
+            "PyOpenTUI Interactive Demo",
+            color=RGBA.from_hex("#00ff00"),
             bold=True,
         )
-        color_box.add(color_text)
-        colors_box.add(color_box)
+        header.add(title)
+        self.root.add(header)
 
-    right_panel.add(colors_box)
+        self.counter = 0
+        self.counter_text = None
 
-    scrollbox = ScrollBox(
-        ctx,
-        x=2,
-        y=13,
-        width=20,
-        height=7,
-    )
-
-    for i in range(15):
-        line = TextRenderable(
-            ctx,
-            f"Scroll line {i + 1}",
-            color=RGBA.from_hex("#6c5ce7" if i % 2 == 0 else "#a29bfe"),
+        counter_box = BoxRenderable(
+            self.ctx,
+            x=35,
+            y=10,
+            width=30,
+            height=8,
+            border=True,
+            border_color=RGBA.from_hex("#ff6b6b"),
+            background_color=RGBA.from_hex("#16213e"),
+            title="Counter",
         )
-        scrollbox.add(line)
 
-    right_panel.add(scrollbox)
+        self.counter_text = TextRenderable(
+            self.ctx,
+            "Count: 0",
+            color=RGBA.from_hex("#ffffff"),
+            bold=True,
+        )
+        counter_box.add(self.counter_text)
+        self.root.add(counter_box)
 
-    scrollbar = ScrollBar(
-        ctx,
-        x=23,
-        y=13,
-        height=7,
-        value=50,
-        max_value=100,
-    )
-    right_panel.add(scrollbar)
+        self.key_label = TextRenderable(
+            self.ctx,
+            "Last key: None",
+            color=RGBA.from_hex("#aaaaaa"),
+        )
+        self.root.add(self.key_label)
 
-    textarea_box = BoxRenderable(
-        ctx,
-        x=27,
-        y=13,
-        width=19,
-        height=7,
-        border=True,
-        border_color=RGBA.from_hex("#00b894"),
-        background_color=RGBA.from_hex("#1a1a2e"),
-        title="Textarea",
-    )
+    def _process_input(self):
+        try:
+            if select.select([sys.stdin], [], [], 0.01)[0]:
+                ch = sys.stdin.read(1)
+                if ch:
+                    self._handle_key(ch)
+        except:
+            pass
 
-    textarea = Textarea(
-        ctx,
-        value="Multi-line\ntext input\nwidget here!",
-    )
-    textarea_box.add(textarea)
-    right_panel.add(textarea_box)
+    def _handle_key(self, ch):
+        if ch == "q" or ch == "\x1b":  # q or ESC
+            self.running = False
+        elif ch == " " or ch == "\n":  # Space or Enter
+            self.counter += 1
+            self.counter_text._text = f"Count: {self.counter}"
+        elif ch == "r":
+            self.counter = 0
+            self.counter_text._text = f"Count: {self.counter}"
 
-    root.add(right_panel)
+        self.key_label._text = f"Last key: {repr(ch)}"
 
-    footer = BoxRenderable(
-        ctx,
-        x=1,
-        y=33,
-        width=98,
-        height=1,
-        background_color=RGBA.from_hex("#0f0f23"),
-    )
+    def _render(self):
+        self.buf.clear(RGBA.from_hex("#0f0f23"))
+        self.root.render(self.buf, 0.016)
 
-    footer_text = TextRenderable(
-        ctx,
-        "↑↓←→ Navigate  |  Type in input  |  Press ESC to exit",
-        color=RGBA.from_hex("#666666"),
-    )
-    footer.add(footer_text)
-    root.add(footer)
+        output = ANSI.set_cursor_position(1, 1) + self.buf.render_to_string()
+        sys.stdout.write(output)
+        sys.stdout.flush()
 
-    # Render to buffer
-    root.render(buf, 0.016)
-
-    return buf
+    def _cleanup(self):
+        sys.stdout.write(ANSI.set_cursor_position(1, 1))
+        sys.stdout.write("\n\n\033[0m")
+        sys.stdout.write("\033[?1049l")
+        sys.stdout.flush()
+        print("Thanks for trying PyOpenTUI!")
 
 
 def main():
-    import time
-    import select
+    if not sys.stdin.isatty():
+        print("Error: Need interactive terminal")
+        sys.exit(1)
 
-    # Enable alternate screen and set background
-    sys.stdout.write("\033[?1049h")
-    sys.stdout.write("\033[48;2;15;15;35m")
-    sys.stdout.write("\033[2J")
-    sys.stdout.flush()
-
-    buf = create_demo()
-    output = buf.render_to_string()
-    sys.stdout.write(output)
-    sys.stdout.flush()
-
-    # Wait for user input or timeout
-    try:
-        if select.select([sys.stdin], [], [], 3)[0]:
-            sys.stdin.read(1)
-    except:
-        time.sleep(3)
-
-    # Restore terminal
-    sys.stdout.write("\n\n\033[0m")
-    sys.stdout.write("\033[?1049l")
-    sys.stdout.flush()
+    tui = SimpleTUI(100, 35)
+    tui.start()
 
 
 if __name__ == "__main__":
