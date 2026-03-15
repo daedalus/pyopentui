@@ -201,15 +201,27 @@ class Renderable(BaseRenderable):
 
     @property
     def x(self) -> int:
+        if isinstance(self._x, str) and self._x.endswith("%"):
+            if self.parent:
+                parent_width = self.parent.width
+                return int(parent_width * float(self._x[:-1]) / 100)
+            return 0
         if self.parent:
-            return self.parent.x + self._x
-        return self._x
+            parent_x = self.parent.x if hasattr(self.parent, "x") else 0
+            return parent_x + (int(self._x) if isinstance(self._x, str) else self._x)
+        return int(self._x) if isinstance(self._x, str) else self._x
 
     @property
     def y(self) -> int:
+        if isinstance(self._y, str) and self._y.endswith("%"):
+            if self.parent:
+                parent_height = self.parent.height
+                return int(parent_height * float(self._y[:-1]) / 100)
+            return 0
         if self.parent:
-            return self.parent.y + self._y
-        return self._y
+            parent_y = self.parent.y if hasattr(self.parent, "y") else 0
+            return parent_y + (int(self._y) if isinstance(self._y, str) else self._y)
+        return int(self._y) if isinstance(self._y, str) else self._y
 
     @property
     def width(self) -> int:
