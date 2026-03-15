@@ -232,8 +232,8 @@ class Buffer:
         from .ansi import ANSI, color_to_ansi_fg, color_to_ansi_bg
 
         output: List[str] = []
-        current_fg: Optional[RGBA] = None
-        current_bg: Optional[RGBA] = None
+        current_fg_id: int = id(None)
+        current_bg_id: int = id(None)
         current_attrs = 0
 
         for y in range(self._height):
@@ -241,8 +241,11 @@ class Buffer:
             for x in range(self._width):
                 cell = self._cells[y][x]
 
-                fg_changed = cell.fg != current_fg
-                bg_changed = cell.bg != current_bg
+                fg_id = id(cell.fg)
+                bg_id = id(cell.bg)
+
+                fg_changed = fg_id != current_fg_id
+                bg_changed = bg_id != current_bg_id
                 attrs_changed = cell.attributes != current_attrs
 
                 if fg_changed or bg_changed or attrs_changed:
@@ -254,11 +257,11 @@ class Buffer:
 
                     if fg_changed and cell.fg:
                         escape_parts.append(color_to_ansi_fg(cell.fg))
-                        current_fg = cell.fg
+                        current_fg_id = fg_id
 
                     if bg_changed and cell.bg:
                         escape_parts.append(color_to_ansi_bg(cell.bg))
-                        current_bg = cell.bg
+                        current_bg_id = bg_id
 
                     if attrs_changed:
                         if cell.attributes & TextAttributes.BOLD:
@@ -276,20 +279,14 @@ class Buffer:
                         else:
                             escape_parts.append(ANSI.set_underline(False))
 
-                        if cell.attributes & TextAttributes.INVERSE:
-                            escape_parts.append(ANSI.set_inverse(True))
-                        else:
-                            escape_parts.append(ANSI.set_inverse(False))
-
-                        current_attrs = cell.attributes
+                    current_attrs = cell.attributes
 
                     output.append("".join(escape_parts))
 
-                line_parts.append(cell.char)
+                line_parts.append(cell.char if cell.char else " ")
 
             if line_parts:
                 output.append("".join(line_parts))
-
             output.append("\n")
 
         output.append(ANSI.RESET)
