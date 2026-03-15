@@ -3,6 +3,8 @@
 
 import sys
 import os
+import time
+import select
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -108,17 +110,30 @@ def render_showcase():
 
 
 def main():
-    print("\033[?1049h")
-    print("\033[48;2;15;15;35m")
-    print("\033[2J")
+    # Enable alternate screen and set background
+    sys.stdout.write("\033[?1049h")
+    sys.stdout.write("\033[48;2;15;15;35m")
+    sys.stdout.write("\033[2J")
+    sys.stdout.write("\033[?7l")  # Disable line wrapping
+    sys.stdout.flush()
 
     buf = render_showcase()
     output = buf.render_to_string()
     sys.stdout.write(output)
     sys.stdout.flush()
 
-    print("\n\n\033[0m")
-    print("\033[?1049l")
+    # Wait for user input or timeout
+    try:
+        if select.select([sys.stdin], [], [], 3)[0]:
+            sys.stdin.read(1)
+    except:
+        time.sleep(3)
+
+    # Restore terminal
+    sys.stdout.write("\033[?7h")  # Re-enable line wrapping
+    sys.stdout.write("\033[0m")
+    sys.stdout.write("\033[?1049l")
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":
