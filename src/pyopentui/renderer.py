@@ -407,12 +407,13 @@ try:
                     self._root._height = h
                 self._dirty = True
 
-            self._curses_window.erase()
+            self._curses_window.clear()
+            self._curses_window.bkgd(" ")
 
             for y in range(min(self._height, h - 1)):
                 for x in range(min(self._width, w - 1)):
                     cell = self._buffer.get_cell(x, y)
-                    if cell and cell.char:
+                    if cell and cell.char and cell.char != " ":
                         try:
                             char = cell.char
                             fg = cell.fg or RGBA.from_values(1, 1, 1, 1)
