@@ -478,6 +478,8 @@ class RootRenderable(Renderable):
 
         self.calculate_layout()
 
+        buffer.clear(self._ctx._background_color)
+
         self._render_list = []
         self.update_layout(delta_time, self._render_list)
 
