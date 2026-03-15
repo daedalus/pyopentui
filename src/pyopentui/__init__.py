@@ -22,6 +22,11 @@ from .renderables import (
     Textarea,
 )
 
+try:
+    from .renderer import CursesRenderer
+except ImportError:
+    CursesRenderer = None
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -37,6 +42,7 @@ __all__ = [
     "LayoutEvents",
     "RenderableEvents",
     "CliRenderer",
+    "CursesRenderer",
     "BoxRenderable",
     "TextRenderable",
     "ScrollBox",

@@ -287,5 +287,236 @@ class NativeCliRenderer:
         return self._destroyed
 
 
+try:
+    import curses
+    import threading
+
+    class CursesRenderer:
+        """CLI renderer using curses library - works in SSH and provides native terminal handling."""
+
+        def __init__(self, width: int = 80, height: int = 24):
+            self._width = width
+            self._height = height
+            self._running = False
+            self._destroyed = False
+            self._dirty = True
+            self._background_color = RGBA.from_values(0, 0, 0, 1)
+            self._root: Optional[RootRenderable] = None
+            self._buffer = OptimizedBuffer(self._width, self._height)
+            self._listeners: Dict[str, List[Callable]] = {}
+            self._input_handlers: List[Callable[[str], bool]] = []
+            self._target_fps = 30
+            self._frame_time = 1.0 / self._target_fps
+            self._curses_window = None
+            self._thread: Optional[threading.Thread] = None
+            self._colors_cache: Dict[tuple, int] = {}
+
+        @property
+        def width(self) -> int:
+            return self._width
+
+        @property
+        def height(self) -> int:
+            return self._height
+
+        @property
+        def buffer(self) -> Buffer:
+            return self._buffer
+
+        @property
+        def root(self) -> Optional[RootRenderable]:
+            return self._root
+
+        def on(self, event: str, callback: Callable) -> None:
+            if event not in self._listeners:
+                self._listeners[event] = []
+            self._listeners[event].append(callback)
+
+        def off(self, event: str, callback: Callable) -> None:
+            if event in self._listeners:
+                self._listeners[event] = [cb for cb in self._listeners[event] if cb != callback]
+
+        def emit(self, event: str, *args, **kwargs) -> None:
+            if event in self._listeners:
+                for cb in self._listeners[event]:
+                    cb(*args, **kwargs)
+
+        def add_input_handler(self, handler: Callable[[str], bool]) -> None:
+            self._input_handlers.append(handler)
+
+        def remove_input_handler(self, handler: Callable[[str], bool]) -> None:
+            self._input_handlers = [h for h in self._input_handlers if h != handler]
+
+        def request_render(self) -> None:
+            self._dirty = True
+
+        def setup(self) -> None:
+            self._root = RootRenderable(self, self._width, self._height)
+            self._running = True
+
+        def cleanup(self) -> None:
+            self._running = False
+
+        def _init_curses(self, stdscr) -> None:
+            curses.curs_set(0)
+            stdscr.nodelay(True)
+            stdscr.keypad(True)
+            curses.start_color()
+            curses.use_default_colors()
+            self._colors_cache = {}
+
+        def _get_color(self, fg: RGBA, bg: RGBA) -> int:
+            key = (fg.r, fg.g, fg.b, bg.r, bg.g, bg.b)
+            if key in self._colors_cache:
+                return self._colors_cache[key]
+
+            color_id = len(self._colors_cache) + 1
+            if color_id < curses.COLORS:
+                r, g, b = int(fg.r * 255), int(fg.g * 255), int(fg.b * 255)
+                curses.init_color(color_id, r, g, b)
+                bg_r, bg_g, bg_b = int(bg.r * 255), int(bg.g * 255), int(bg.b * 255)
+                bg_color_id = color_id + 100
+                if bg_color_id < curses.COLORS:
+                    curses.init_color(bg_color_id, bg_r, bg_g, bg_b)
+                pair_id = color_id
+                curses.init_pair(pair_id, color_id, -1)
+                self._colors_cache[key] = curses.color_pair(pair_id)
+                return curses.color_pair(pair_id)
+            return 0
+
+        def render(self) -> None:
+            if not self._dirty or not self._root:
+                return
+
+            self._buffer.clear(self._background_color)
+            delta_time = 0.016
+            self._root.render(self._buffer, delta_time)
+            self._dirty = False
+
+        def present(self) -> None:
+            if not self._curses_window:
+                return
+
+            h, w = self._curses_window.getmaxyx()
+            if w != self._width or h != self._height:
+                self._width = w
+                self._height = h
+                self._buffer = OptimizedBuffer(w, h)
+                if self._root:
+                    self._root._width = w
+                    self._root._height = h
+                self._dirty = True
+
+            for y in range(min(self._height, h - 1)):
+                for x in range(min(self._width, w - 1)):
+                    cell = self._buffer.get_cell(x, y)
+                    if cell:
+                        try:
+                            char = cell.char or " "
+                            fg = cell.fg or RGBA.from_values(1, 1, 1, 1)
+                            bg = cell.bg or RGBA.from_values(0, 0, 0, 1)
+                            color = self._get_color(fg, bg)
+                            self._curses_window.addch(y, x, char, color)
+                        except curses.error:
+                            pass
+
+            self._curses_window.refresh()
+
+        def _curses_loop(self, stdscr) -> None:
+            self._curses_window = stdscr
+            self._init_curses(stdscr)
+
+            try:
+                self.setup()
+
+                while self._running and not self._destroyed:
+                    try:
+                        key = stdscr.getch()
+                        if key != -1:
+                            key_name = self._key_to_name(key)
+                            raw = chr(key) if 0 <= key < 256 else ""
+
+                            for handler in self._input_handlers:
+                                if handler(raw):
+                                    break
+                            else:
+                                event = KeyEvent(name=key_name, sequence=raw)
+                                self.emit("key", event)
+
+                                if key_name == "escape":
+                                    self.emit("escape")
+                                elif key_name == "enter":
+                                    self.emit("enter")
+                                elif key_name == "backspace":
+                                    self.emit("backspace")
+                                elif key_name == "up":
+                                    self.emit("up")
+                                elif key_name == "down":
+                                    self.emit("down")
+                                elif key_name == "left":
+                                    self.emit("left")
+                                elif key_name == "right":
+                                    self.emit("right")
+
+                    except curses.error:
+                        pass
+
+                    if self._dirty:
+                        self.render()
+                        self.present()
+
+                    curses.napms(int(self._frame_time * 1000))
+
+            finally:
+                self.cleanup()
+
+        def _key_to_name(self, key: int) -> str:
+            key_map = {
+                27: "escape",
+                10: "enter",
+                curses.KEY_ENTER: "enter",
+                curses.KEY_BACKSPACE: "backspace",
+                127: "backspace",
+                9: "tab",
+                curses.KEY_UP: "up",
+                curses.KEY_DOWN: "down",
+                curses.KEY_LEFT: "left",
+                curses.KEY_RIGHT: "right",
+                curses.KEY_HOME: "home",
+                curses.KEY_END: "end",
+                curses.KEY_PPAGE: "pageup",
+                curses.KEY_NPAGE: "pagedown",
+                curses.KEY_DC: "delete",
+            }
+            if key in key_map:
+                return key_map[key]
+            if 0 <= key < 256:
+                return chr(key)
+            return "unknown"
+
+        def run(self) -> None:
+            curses.wrapper(self._curses_loop)
+
+        def stop(self) -> None:
+            self._running = False
+
+        def destroy(self) -> None:
+            self._destroyed = True
+            if self._root:
+                self._root.destroy()
+            self._running = False
+
+        @property
+        def is_running(self) -> bool:
+            return self._running
+
+        @property
+        def is_destroyed(self) -> bool:
+            return self._destroyed
+
+except ImportError:
+    CursesRenderer = None
+
+
 # Alias for backward compatibility
 CliRenderer = NativeCliRenderer
