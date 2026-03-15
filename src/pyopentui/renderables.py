@@ -53,6 +53,12 @@ class BoxRenderable(Renderable):
                 self._background_color,
             )
 
+    def render(self, buffer: Buffer, delta_time: float) -> None:
+        self.render_self(buffer, delta_time)
+
+        for child in self._children:
+            child.render(buffer, delta_time)
+
 
 class TextRenderable(Renderable):
     """A text display component."""

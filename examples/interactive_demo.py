@@ -56,6 +56,8 @@ def main():
         )
         input_field = Input(
             renderer,
+            x=1,
+            y=1,
             placeholder="Type text and press Enter...",
             max_length=30,
         )
@@ -77,6 +79,10 @@ def main():
         )
         output_text = Textarea(
             renderer,
+            x=1,
+            y=1,
+            width=40,
+            height=14,
             value="",
             placeholder="Entered text will appear here...",
         )
@@ -97,6 +103,8 @@ def main():
         )
         input_field2 = Input(
             renderer,
+            x=1,
+            y=1,
             placeholder="Tab to switch here...",
             max_length=30,
         )
