@@ -1,100 +1,53 @@
 #!/usr/bin/env python3
-"""PyOpenTUI Interactive Showcase - Works in SSH."""
+"""PyOpenTUI Interactive Showcase using new native terminal renderer."""
 
 import sys
 import os
 import time
-import select
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from pyopentui import (
-    BoxRenderable,
-    TextRenderable,
-    ScrollBox,
-    Input,
-    Textarea,
-    ScrollBar,
-    RGBA,
-    TextAttributes,
-)
-from pyopentui.buffer import Buffer
-from pyopentui.renderable import RootRenderable
-from pyopentui.ansi import ANSI
+from pyopentui import CliRenderer, BoxRenderable, TextRenderable, RGBA
 
 
-class SimpleTUI:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.buf = Buffer(width, height)
-        self.running = False
+def main():
+    if not sys.stdin.isatty():
+        print("Error: Need interactive terminal")
+        sys.exit(1)
 
-        class MockCtx:
-            def __init__(self, w, h):
-                self.width = w
-                self.height = h
-                self._background_color = RGBA.from_hex("#0f0f23")
+    renderer = CliRenderer(80, 24)
 
-            def request_render(self):
-                pass
+    try:
+        renderer.setup()
 
-            def focus(self, r):
-                pass
+        root = renderer.root
 
-            def blur(self):
-                pass
-
-            def emit(self, name, data):
-                pass
-
-        self.ctx = MockCtx(width, height)
-        self.root = RootRenderable(self.ctx, width, height)
-
-    def start(self):
-        self.running = True
-
-        # Enable alternate screen
-        sys.stdout.write("\033[?1049h")
-        sys.stdout.write(ANSI.clear_screen())
-        sys.stdout.flush()
-
-        self._setup_ui()
-
-        while self.running:
-            self._process_input()
-            self._render()
-            time.sleep(0.05)  # ~20fps
-
-        self._cleanup()
-
-    def _setup_ui(self):
+        # Header
         header = BoxRenderable(
-            self.ctx,
+            renderer,
             x=1,
             y=1,
-            width=98,
+            width=78,
             height=3,
             border=True,
             border_color=RGBA.from_hex("#00ff00"),
             background_color=RGBA.from_hex("#1a1a2e"),
         )
         title = TextRenderable(
-            self.ctx,
-            "PyOpenTUI Interactive Demo",
+            renderer,
+            "PyOpenTUI Interactive Demo - Press ESC to quit",
             color=RGBA.from_hex("#00ff00"),
             bold=True,
         )
         header.add(title)
-        self.root.add(header)
+        root.add(header)
 
-        self.counter = 0
-        self.counter_text = None
-
+        # Counter
+        counter = 0
         counter_box = BoxRenderable(
-            self.ctx,
-            x=35,
-            y=10,
+            renderer,
+            x=25,
+            y=8,
             width=30,
             height=8,
             border=True,
@@ -103,66 +56,64 @@ class SimpleTUI:
             title="Counter",
         )
 
-        self.counter_text = TextRenderable(
-            self.ctx,
-            "Count: 0",
+        counter_text = TextRenderable(
+            renderer,
+            f"Count: {counter}",
             color=RGBA.from_hex("#ffffff"),
             bold=True,
         )
-        counter_box.add(self.counter_text)
-        self.root.add(counter_box)
+        counter_box.add(counter_text)
+        root.add(counter_box)
 
-        self.key_label = TextRenderable(
-            self.ctx,
-            "Last key: None",
+        # Instructions
+        instructions = BoxRenderable(
+            renderer,
+            x=10,
+            y=18,
+            width=60,
+            height=4,
+            border=True,
+            border_color=RGBA.from_hex("#6c5ce7"),
+            background_color=RGBA.from_hex("#16213e"),
+            title="Controls",
+        )
+
+        inst_text = TextRenderable(
+            renderer,
+            "SPACE/ENTER: Increment | R: Reset | ESC: Quit",
             color=RGBA.from_hex("#aaaaaa"),
         )
-        self.root.add(self.key_label)
+        instructions.add(inst_text)
+        root.add(instructions)
 
-    def _process_input(self):
-        try:
-            if select.select([sys.stdin], [], [], 0.01)[0]:
-                ch = sys.stdin.read(1)
-                if ch:
-                    self._handle_key(ch)
-        except:
-            pass
+        # Key handler
+        def on_key(event):
+            nonlocal counter
+            if event.name == "escape":
+                renderer.stop()
+                return True
+            elif event.name == "enter" or event.sequence == " ":
+                counter += 1
+                counter_text._text = f"Count: {counter}"
+            elif event.name == "backspace" or event.sequence == "r":
+                counter = 0
+                counter_text._text = f"Count: {counter}"
+            return True
 
-    def _handle_key(self, ch):
-        if ch == "q" or ch == "\x1b":  # q or ESC
-            self.running = False
-        elif ch == " " or ch == "\n":  # Space or Enter
-            self.counter += 1
-            self.counter_text._text = f"Count: {self.counter}"
-        elif ch == "r":
-            self.counter = 0
-            self.counter_text._text = f"Count: {self.counter}"
+        renderer.on("key", on_key)
 
-        self.key_label._text = f"Last key: {repr(ch)}"
+        # Run loop
+        while renderer.is_running:
+            renderer.process_input()
+            renderer.render()
+            renderer.present()
+            time.sleep(0.05)
 
-    def _render(self):
-        self.buf.clear(RGBA.from_hex("#0f0f23"))
-        self.root.render(self.buf, 0.016)
-
-        output = ANSI.set_cursor_position(1, 1) + self.buf.render_to_string()
-        sys.stdout.write(output)
-        sys.stdout.flush()
-
-    def _cleanup(self):
-        sys.stdout.write(ANSI.set_cursor_position(1, 1))
-        sys.stdout.write("\n\n\033[0m")
-        sys.stdout.write("\033[?1049l")
-        sys.stdout.flush()
-        print("Thanks for trying PyOpenTUI!")
-
-
-def main():
-    if not sys.stdin.isatty():
-        print("Error: Need interactive terminal")
-        sys.exit(1)
-
-    tui = SimpleTUI(100, 35)
-    tui.start()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        renderer.cleanup()
+        print("\nThanks for trying PyOpenTUI!")
 
 
 if __name__ == "__main__":
