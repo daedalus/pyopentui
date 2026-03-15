@@ -12,7 +12,7 @@ from pyopentui.renderer import KeyEvent
 
 
 def main():
-    renderer = CliRenderer(100, 30)
+    renderer = CliRenderer()
 
     terminal = renderer._terminal
     terminal.make_nonblocking()
@@ -22,12 +22,12 @@ def main():
 
         root = renderer.root
 
-        # Header
+        # Header - full width, fixed height
         header = BoxRenderable(
             renderer,
-            x=1,
-            y=1,
-            width=98,
+            x=0,
+            y=0,
+            width="100%",
             height=3,
             border=True,
             border_color=RGBA.from_hex("#00ff00"),
@@ -42,13 +42,13 @@ def main():
         header.add(title)
         root.add(header)
 
-        # Input box for typing
+        # Input box for typing - left side
         input_box = BoxRenderable(
             renderer,
-            x=5,
-            y=6,
-            width=40,
-            height=8,
+            x=1,
+            y=4,
+            width="40%",
+            height="50%",
             border=True,
             border_color=RGBA.from_hex("#4ecdc4"),
             background_color=RGBA.from_hex("#16213e"),
@@ -65,13 +65,13 @@ def main():
         root.add(input_box)
         input_field.focus()
 
-        # Output text area - shows entered text
+        # Output text area - right side
         output_box = BoxRenderable(
             renderer,
-            x=50,
-            y=6,
-            width=45,
-            height=18,
+            x="45%",
+            y=4,
+            width="54%",
+            height="80%",
             border=True,
             border_color=RGBA.from_hex("#ffe66d"),
             background_color=RGBA.from_hex("#16213e"),
@@ -81,21 +81,19 @@ def main():
             renderer,
             x=1,
             y=1,
-            width=40,
-            height=14,
             value="",
             placeholder="Entered text will appear here...",
         )
         output_box.add(output_text)
         root.add(output_box)
 
-        # Another input box for demonstration
+        # Second input box - below first
         input_box2 = BoxRenderable(
             renderer,
-            x=5,
-            y=16,
-            width=40,
-            height=8,
+            x=1,
+            y="56%",
+            width="40%",
+            height="24%",
             border=True,
             border_color=RGBA.from_hex("#ff6b6b"),
             background_color=RGBA.from_hex("#16213e"),
@@ -115,12 +113,12 @@ def main():
         focusables = [input_field, input_field2]
         current_focus = 0
 
-        # Instructions
+        # Instructions - bottom
         instructions = BoxRenderable(
             renderer,
-            x=5,
-            y=26,
-            width=90,
+            x=1,
+            y="92%",
+            width="98%",
             height=3,
             border=True,
             border_color=RGBA.from_hex("#6c5ce7"),
