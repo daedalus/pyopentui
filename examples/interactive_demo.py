@@ -140,6 +140,17 @@ def main():
 
         # Run loop
         while renderer.is_running:
+            # Check for terminal resize
+            new_width, new_height = terminal.get_size()
+            if new_width != renderer.width or new_height != renderer.height:
+                renderer._width = new_width
+                renderer._height = new_height
+                renderer._buffer = type(renderer._buffer)(new_width, new_height)
+                if renderer._root:
+                    renderer._root._width = new_width
+                    renderer._root._height = new_height
+                renderer.request_render()
+
             key = terminal.read_key(0.02)
 
             if key:
