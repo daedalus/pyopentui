@@ -137,20 +137,34 @@ class NativeCliRenderer:
 
     def setup(self) -> None:
         """Set up terminal for rendering."""
+        import sys as _sys
+
+        _sys.stderr.write("  Terminal.setup()... ")
+
         # Try to set up raw mode, but continue even if it fails
-        self._terminal.setup()
+        result = self._terminal.setup()
+        _sys.stderr.write(f"result={result} ")
 
         if self._use_alternate_screen:
+            _sys.stderr.write("alt_screen ")
             self._terminal.enter_alternate_screen()
 
         if self._use_mouse:
+            _sys.stderr.write("mouse ")
             self._terminal.enable_mouse_tracking()
 
+        _sys.stderr.write("cursor ")
         self._terminal.hide_cursor()
+        _sys.stderr.write("clear ")
         self._terminal.clear_screen()
+        _sys.stderr.write("home ")
         self._terminal.home_cursor()
+        _sys.stderr.write("flush ")
+        self._terminal.stdout.flush()
 
+        _sys.stderr.write("root ")
         self._root = RootRenderable(self, self._width, self._height)
+        _sys.stderr.write("done\n")
 
     def cleanup(self) -> None:
         """Clean up terminal after rendering."""
