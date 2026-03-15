@@ -31,34 +31,22 @@ class Terminal:
 
     def setup(self) -> bool:
         """Set up terminal for raw mode. Returns True if successful."""
-        import sys as _sys
-
-        _sys.stderr.write("    Terminal.setup() start\n")
-
         try:
             # Save old settings
-            _sys.stderr.write("    tcgetattr... ")
             self._old_settings = termios.tcgetattr(self.stdin.fileno())
-            _sys.stderr.write("ok\n")
 
             # Set raw mode using tty.setraw
-            _sys.stderr.write("    setraw... ")
             tty.setraw(self.stdin.fileno())
             self._is_raw = True
-            _sys.stderr.write("ok\n")
             return True
-        except Exception as e:
-            _sys.stderr.write(f"ERROR: {e}\n")
+        except:
             # Fall back to cbreak mode
             try:
-                _sys.stderr.write("    fallback setcbreak... ")
                 self._old_settings = termios.tcgetattr(self.stdin.fileno())
                 tty.setcbreak(self.stdin.fileno())
                 self._is_raw = True
-                _sys.stderr.write("ok\n")
                 return True
-            except Exception as e2:
-                _sys.stderr.write(f"ERROR2: {e2}\n")
+            except:
                 return False
 
     def cleanup(self) -> None:
@@ -165,22 +153,18 @@ class Terminal:
 
     def write(self, data: str) -> None:
         """Write to stdout."""
-        import sys as _sys
-
         try:
             self.stdout.write(data)
             self.stdout.flush()
-        except Exception as e:
-            _sys.stderr.write(f"Terminal.write error: {e}\n")
+        except:
+            pass
 
     def write_bytes(self, data: bytes) -> None:
         """Write bytes to stdout."""
-        import sys as _sys
-
         try:
             os.write(self.stdout.fileno(), data)
-        except Exception as e:
-            _sys.stderr.write(f"Terminal.write_bytes error: {e}\n")
+        except:
+            pass
 
     def clear_screen(self) -> None:
         """Clear the screen."""
@@ -204,12 +188,7 @@ class Terminal:
 
     def enter_alternate_screen(self) -> None:
         """Enter alternate screen buffer."""
-        import sys as _sys
-
-        try:
-            self.write("\033[?1049h")
-        except Exception as e:
-            _sys.stderr.write(f"enter_alternate_screen error: {e}\n")
+        self.write("\033[?1049h")
 
     def exit_alternate_screen(self) -> None:
         """Exit alternate screen buffer."""

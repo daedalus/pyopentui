@@ -12,15 +12,12 @@ from pyopentui import CliRenderer, BoxRenderable, TextRenderable, RGBA
 
 def main():
     import os
+    import time
 
-    os.write(1, b"Creating renderer...\n")
     renderer = CliRenderer(80, 24)
-    os.write(1, b"Renderer created\n")
 
     try:
-        os.write(1, b"Setting up renderer...\n")
         renderer.setup()
-        os.write(1, b"Setup complete, adding elements...\n")
 
         root = renderer.root
 
@@ -99,38 +96,28 @@ def main():
             elif event.name == "enter" or event.sequence == " ":
                 counter += 1
                 counter_text._text = f"Count: {counter}"
+                renderer.request_render()
             elif event.name == "backspace" or event.sequence == "r":
                 counter = 0
                 counter_text._text = f"Count: {counter}"
+                renderer.request_render()
             return True
 
         renderer.on("key", on_key)
 
         # Run loop
-        os.write(1, b"Starting run loop...\n")
-        os.write(1, f"is_running = {renderer.is_running}\n".encode())
-
         while renderer.is_running:
-            os.write(1, b"In loop...\n")
             renderer.process_input()
-            renderer.render()
-            renderer.present()
-            import time
-
+            if renderer._dirty:
+                renderer.render()
+                renderer.present()
             time.sleep(0.05)
 
     except KeyboardInterrupt:
-        os.write(1, b"KeyboardInterrupt\n")
         pass
-    except Exception as e:
-        os.write(1, f"Exception: {e}\n".encode())
-        import traceback
-
-        traceback.print_exc()
     finally:
-        os.write(1, b"Cleaning up...\n")
         renderer.cleanup()
-        os.write(1, b"\nThanks for trying PyOpenTUI!\n")
+        print("\nThanks for trying PyOpenTUI!")
 
 
 if __name__ == "__main__":

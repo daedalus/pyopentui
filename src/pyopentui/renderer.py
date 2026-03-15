@@ -137,36 +137,20 @@ class NativeCliRenderer:
 
     def setup(self) -> None:
         """Set up terminal for rendering."""
-        import sys as _sys
-        import os
-
-        os.write(2, b"  Terminal.setup()...")
-
         # Try to set up raw mode, but continue even if it fails
-        result = self._terminal.setup()
-        os.write(2, f"result={result} ".encode())
+        self._terminal.setup()
 
         if self._use_alternate_screen:
-            os.write(2, b"alt_screen ")
             self._terminal.enter_alternate_screen()
-            os.write(2, b"done_alt ")
 
-        os.write(2, b"mouse ")
         if self._use_mouse:
             self._terminal.enable_mouse_tracking()
 
-        os.write(2, b"cursor ")
         self._terminal.hide_cursor()
-
-        os.write(2, b"clear ")
         self._terminal.clear_screen()
-
-        os.write(2, b"home ")
         self._terminal.home_cursor()
 
-        os.write(2, b"root ")
         self._root = RootRenderable(self, self._width, self._height)
-        os.write(2, b"done\n")
 
         # Mark as running so the loop will execute
         self._running = True
@@ -197,9 +181,13 @@ class NativeCliRenderer:
         self._dirty = False
 
     def present(self) -> None:
-        """Output the buffer to the terminal."""
+        """Output the buffer to the terminal only if content changed."""
         output = ANSI.set_cursor_position(1, 1) + self._buffer.render_to_string()
-        self._terminal.write(output)
+
+        # Only output if content changed
+        if output != self._last_frame_content:
+            self._last_frame_content = output
+            self._terminal.write(output)
 
     def process_input(self) -> None:
         """Process input events."""
