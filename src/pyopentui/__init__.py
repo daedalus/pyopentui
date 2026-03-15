@@ -12,7 +12,7 @@ from .types import (
     CursorStyleOptions,
 )
 from .renderable import Renderable, BaseRenderable, RootRenderable, LayoutEvents, RenderableEvents
-from .renderer import CliRenderer, create_cli_renderer
+from .renderer import CliRenderer
 from .renderables import (
     BoxRenderable,
     TextRenderable,
@@ -37,7 +37,6 @@ __all__ = [
     "LayoutEvents",
     "RenderableEvents",
     "CliRenderer",
-    "create_cli_renderer",
     "BoxRenderable",
     "TextRenderable",
     "ScrollBox",

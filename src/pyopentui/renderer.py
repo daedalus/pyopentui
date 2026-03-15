@@ -1,18 +1,17 @@
-"""CLI Renderer for terminal output and input handling."""
+"""
+Native terminal renderer for PyOpenTUI.
+Works in SSH, hardware TTY, and all terminal environments.
+"""
 
 from __future__ import annotations
 import sys
 import os
-import select
-import termios
-import tty
-from typing import Any, Callable, Dict, List, Optional, Set
-from threading import Thread, Event as ThreadEvent
+from typing import Any, Callable, Dict, List, Optional
 
 from .ansi import ANSI
 from .buffer import Buffer, OptimizedBuffer
 from .renderable import Renderable, RootRenderable
-from .types import RGBA, CursorStyle, CursorStyleOptions, MousePointerStyle, ThemeMode
+from .types import RGBA, CursorStyleOptions
 
 
 class MouseEvent:
@@ -47,27 +46,40 @@ class KeyEvent:
         self.shift = shift
 
 
-class CliRenderer:
-    """Main CLI renderer for terminal UI."""
+class NativeCliRenderer:
+    """CLI renderer using native terminal bindings - works in SSH."""
 
     def __init__(
         self,
         width: int = 80,
         height: int = 24,
-        stdin: Optional[Any] = None,
-        stdout: Optional[Any] = None,
-    ) -> None:
+        stdin=None,
+        stdout=None,
+    ):
+        from .terminal import Terminal, InputReader, detect_ssh, get_terminal_size
+
         self._width = width
         self._height = height
+
+        # Use terminal size if available
+        w, h = get_terminal_size()
+        if w > 0 and h > 0:
+            self._width = w
+            self._height = h
+
         self._stdin = stdin or sys.stdin
         self._stdout = stdout or sys.stdout
+
+        # Use native terminal
+        self._terminal = Terminal(self._stdin, self._stdout)
+        self._input_reader = InputReader(self._terminal)
+
         self._running = False
         self._destroyed = False
         self._dirty = True
 
-        self._buffer = OptimizedBuffer(width, height)
-        self._next_buffer = OptimizedBuffer(width, height)
-        self._last_frame_content: Optional[str] = None
+        self._buffer = OptimizedBuffer(self._width, self._height)
+        self._next_buffer = OptimizedBuffer(self._width, self._height)
 
         self._background_color = RGBA.from_values(0, 0, 0, 1)
         self._root: Optional[RootRenderable] = None
@@ -76,26 +88,13 @@ class CliRenderer:
         self._input_handlers: List[Callable[[str], bool]] = []
 
         self._target_fps = 30
-        self._max_fps = 60
         self._frame_time = 1.0 / self._target_fps
 
-        self._last_frame_time = 0.0
-        self._frame_count = 0
-        self._fps = 0
-        self._last_fps_time = 0.0
+        self._use_alternate_screen = True
+        self._use_mouse = True
 
-        self._use_alternate_screen = False  # Disabled for better compatibility
-        self._use_mouse = False
-
-        self._current_focused_renderable: Optional[Renderable] = None
-
-        self._cursor_x = 0
-        self._cursor_y = 0
-        self._cursor_visible = True
-        self._cursor_style: CursorStyleOptions = CursorStyleOptions()
-
-        self._theme_mode: Optional[ThemeMode] = None
-        self._debug_overlay_enabled = False
+        # Detect SSH
+        self._is_ssh = detect_ssh()
 
     @property
     def width(self) -> int:
@@ -113,44 +112,6 @@ class CliRenderer:
     def root(self) -> Optional[RootRenderable]:
         return self._root
 
-    def setup(self) -> None:
-        """Set up the terminal for rendering."""
-        if self._use_alternate_screen:
-            self._stdout.write(ANSI.set_alternate_screen(True))
-
-        self._stdout.write(ANSI.clear_screen())
-        self._stdout.write(ANSI.set_cursor_position(1, 1))
-
-        if self._use_mouse:
-            self._stdout.write(ANSI.enable_mouse_tracking())
-
-        self._stdout.write(ANSI.set_cursor_visible(True))
-        self._stdout.flush()
-
-        try:
-            self._old_term_settings = termios.tcgetattr(self._stdin.fileno())
-            tty.setcbreak(self._stdin.fileno())
-        except termios.error:
-            pass
-
-        self._root = RootRenderable(self, self._width, self._height)
-
-    def cleanup(self) -> None:
-        """Clean up the terminal after rendering."""
-        self._stdout.write(ANSI.set_cursor_position(1, 1))
-        self._stdout.write(ANSI.set_alternate_screen(False))
-        self._stdout.write(ANSI.disable_mouse_tracking())
-        self._stdout.write(ANSI.set_cursor_visible(True))
-        self._stdout.write(ANSI.RESET)
-        self._stdout.write("\n")
-        self._stdout.flush()
-
-        if hasattr(self, "_old_term_settings"):
-            try:
-                termios.tcsetattr(self._stdin.fileno(), termios.TCSADRAIN, self._old_term_settings)
-            except termios.error:
-                pass
-
     def on(self, event: str, callback: Callable) -> None:
         if event not in self._listeners:
             self._listeners[event] = []
@@ -160,10 +121,10 @@ class CliRenderer:
         if event in self._listeners:
             self._listeners[event] = [cb for cb in self._listeners[event] if cb != callback]
 
-    def emit(self, event: str, *args: Any) -> None:
+    def emit(self, event: str, *args, **kwargs) -> None:
         if event in self._listeners:
-            for callback in self._listeners[event]:
-                callback(*args)
+            for cb in self._listeners[event]:
+                cb(*args, **kwargs)
 
     def add_input_handler(self, handler: Callable[[str], bool]) -> None:
         self._input_handlers.append(handler)
@@ -174,58 +135,36 @@ class CliRenderer:
     def request_render(self) -> None:
         self._dirty = True
 
-    def resize(self, width: int, height: int) -> None:
-        self._width = width
-        self._height = height
-        self._buffer.resize(width, height)
-        self._next_buffer.resize(width, height)
+    def setup(self) -> None:
+        """Set up terminal for rendering."""
+        # Try to set up raw mode, but continue even if it fails
+        self._terminal.setup()
 
-        if self._root:
-            self._root.resize(width, height)
+        if self._use_alternate_screen:
+            self._terminal.enter_alternate_screen()
 
-        self.request_render()
-        self.emit("resize", width, height)
+        if self._use_mouse:
+            self._terminal.enable_mouse_tracking()
 
-    def set_background_color(self, color: RGBA) -> None:
-        self._background_color = color
-        self._buffer.clear(color)
-        self.request_render()
+        self._terminal.hide_cursor()
+        self._terminal.clear_screen()
+        self._terminal.home_cursor()
 
-    def set_cursor_position(self, x: int, y: int, visible: bool = True) -> None:
-        self._cursor_x = x
-        self._cursor_y = y
-        self._cursor_visible = visible
+        self._root = RootRenderable(self, self._width, self._height)
 
-    def set_cursor_style(self, options: CursorStyleOptions) -> None:
-        self._cursor_style = options
+    def cleanup(self) -> None:
+        """Clean up terminal after rendering."""
+        self._terminal.set_cursor(1, 1)
+        self._terminal.show_cursor()
 
-    def set_mouse_pointer(self, style: MousePointerStyle) -> None:
-        pass
+        if self._use_alternate_screen:
+            self._terminal.exit_alternate_screen()
 
-    def focus_renderable(self, renderable: Renderable) -> None:
-        if self._current_focused_renderable:
-            self._current_focused_renderable.blur()
-        self._current_focused_renderable = renderable
-        renderable.focus()
+        if self._use_mouse:
+            self._terminal.disable_mouse_tracking()
 
-    @property
-    def current_focused_renderable(self) -> Optional[Renderable]:
-        return self._current_focused_renderable
-
-    def add_to_hit_grid(self, x: int, y: int, width: int, height: int, id: int) -> None:
-        pass
-
-    def push_hit_grid_scissor_rect(self, x: int, y: int, width: int, height: int) -> None:
-        pass
-
-    def pop_hit_grid_scissor_rect(self) -> None:
-        pass
-
-    def clear_hit_grid_scissor_rects(self) -> None:
-        pass
-
-    def hit_test(self, x: int, y: int) -> int:
-        return 0
+        self._terminal.reset()
+        self._terminal.cleanup()
 
     def render(self) -> None:
         if not self._dirty or not self._root:
@@ -240,105 +179,42 @@ class CliRenderer:
 
     def present(self) -> None:
         """Output the buffer to the terminal."""
-        output = self._buffer.render_to_string()
-        output = ANSI.set_cursor_position(1, 1) + output
-        self._stdout.write(output)
-        self._stdout.flush()
-
-    def read_input(self, timeout: float = 0.01) -> List[str]:
-        """Read input from the terminal."""
-        sequences = []
-
-        if select.select([self._stdin], [], [], timeout)[0]:
-            try:
-                data = self._stdin.read(1)
-                if data:
-                    sequence = self._parse_sequence(data)
-                    if sequence:
-                        sequences.append(sequence)
-            except (IOError, OSError):
-                pass
-
-        return sequences
-
-    def _parse_sequence(self, data: str) -> Optional[str]:
-        if ord(data) == 27:
-            seq = data
-            while select.select([self._stdin], [], [], 0.001)[0]:
-                try:
-                    char = self._stdin.read(1)
-                    if char:
-                        seq += char
-                except (IOError, OSError):
-                    break
-            return seq
-
-        return data if data else None
+        output = ANSI.set_cursor_position(1, 1) + self._buffer.render_to_string()
+        self._terminal.write(output)
 
     def process_input(self) -> None:
         """Process input events."""
-        sequences = self.read_input()
+        key = self._input_reader.read_key()
 
-        for sequence in sequences:
-            handled = False
+        if key:
+            event = KeyEvent(
+                name=key.get("name", "unknown"),
+                sequence=key.get("raw", ""),
+            )
 
+            # Check handlers
             for handler in self._input_handlers:
-                if handler(sequence):
-                    handled = True
-                    break
+                if handler(key.get("raw", "")):
+                    return
 
-            if not handled:
-                self._handle_sequence(sequence)
+            # Emit key event
+            self.emit("key", event)
 
-    def _handle_sequence(self, sequence: str) -> None:
-        if sequence == "\x1b[A":
-            self.emit("key", KeyEvent("up", sequence))
-        elif sequence == "\x1b[B":
-            self.emit("key", KeyEvent("down", sequence))
-        elif sequence == "\x1b[C":
-            self.emit("key", KeyEvent("right", sequence))
-        elif sequence == "\x1b[D":
-            self.emit("key", KeyEvent("left", sequence))
-        elif sequence == "\r":
-            self.emit("key", KeyEvent("enter", sequence))
-        elif sequence == "\x7f":
-            self.emit("key", KeyEvent("backspace", sequence))
-        elif sequence == "\t":
-            self.emit("key", KeyEvent("tab", sequence))
-        elif sequence == "\x1b":
-            self.emit("key", KeyEvent("escape", sequence))
-        elif sequence.startswith("\x1b[M"):
-            self._handle_mouse_event(sequence)
-        elif len(sequence) == 1:
-            self.emit("key", KeyEvent(sequence, sequence))
-
-    def _handle_mouse_event(self, sequence: str) -> None:
-        if len(sequence) < 6:
-            return
-
-        try:
-            btn = ord(sequence[3]) - 32
-            x = ord(sequence[4]) - 33
-            y = ord(sequence[5]) - 33
-
-            event_type = "move"
-            if btn == 0:
-                event_type = "down"
-            elif btn == 1:
-                event_type = "up"
-            elif btn == 32:
-                event_type = "move"
-            elif btn == 64:
-                event_type = "scroll"
-                btn = 4
-            elif btn == 65:
-                event_type = "scroll"
-                btn = 5
-
-            event = MouseEvent(event_type, x, y, btn)
-            self.emit("mouse", event)
-        except (ValueError, IndexError):
-            pass
+            # Handle special keys
+            if key.get("name") == "escape":
+                self.emit("escape")
+            elif key.get("name") == "enter":
+                self.emit("enter")
+            elif key.get("name") == "backspace":
+                self.emit("backspace")
+            elif key.get("name") == "up":
+                self.emit("up")
+            elif key.get("name") == "down":
+                self.emit("down")
+            elif key.get("name") == "left":
+                self.emit("left")
+            elif key.get("name") == "right":
+                self.emit("right")
 
     def run(self) -> None:
         """Main run loop."""
@@ -349,8 +225,10 @@ class CliRenderer:
 
             while self._running and not self._destroyed:
                 self.process_input()
-                self.render()
-                self.present()
+
+                if self._dirty:
+                    self.render()
+                    self.present()
 
                 import time
 
@@ -379,12 +257,5 @@ class CliRenderer:
         return self._destroyed
 
 
-async def create_cli_renderer(**config: Any) -> CliRenderer:
-    """Create a new CLI renderer."""
-    width = config.get("width", 80)
-    height = config.get("height", 24)
-
-    renderer = CliRenderer(width, height)
-    renderer.setup()
-
-    return renderer
+# Alias for backward compatibility
+CliRenderer = NativeCliRenderer
