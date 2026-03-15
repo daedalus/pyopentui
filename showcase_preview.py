@@ -27,13 +27,13 @@ def render_showcase():
 
     title = """
 ╔══════════════════════════════════════════════════════════════════╗
-║           🎨 PyOpenTUI Showcase - All Features Demo            ║
+║           PyOpenTUI Showcase - All Features Demo            ║
 ╚══════════════════════════════════════════════════════════════════╝"""
 
     buf.write_text(1, 1, title, RGBA.from_hex("#00ff00"), attributes=TextAttributes.BOLD)
 
     buf.draw_frame(
-        1, 7, 47, 25, "📦 Box Components", RGBA.from_hex("#ff6b6b"), RGBA.from_hex("#16213e")
+        1, 7, 47, 25, "Box Components", RGBA.from_hex("#ff6b6b"), RGBA.from_hex("#16213e")
     )
 
     buf.draw_frame(3, 9, 18, 5, "Simple Box", RGBA.from_hex("#4ecdc4"), RGBA.from_hex("#1a1a2e"))
@@ -63,7 +63,7 @@ def render_showcase():
     buf.write_text(25, 21, "Input focused!", RGBA.from_hex("#a8e6cf"))
 
     buf.draw_frame(
-        50, 7, 48, 25, "📝 Text & Components", RGBA.from_hex("#6c5ce7"), RGBA.from_hex("#16213e")
+        50, 7, 48, 25, "Text & Components", RGBA.from_hex("#6c5ce7"), RGBA.from_hex("#16213e")
     )
 
     buf.draw_frame(
