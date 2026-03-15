@@ -6,6 +6,7 @@ Works in SSH, hardware TTY, and all terminal environments.
 from __future__ import annotations
 import sys
 import os
+import signal
 from typing import Any, Callable, Dict, List, Optional
 
 from .ansi import ANSI
@@ -226,25 +227,32 @@ class NativeCliRenderer:
             elif key.get("name") == "right":
                 self.emit("right")
 
+    def _handle_resize(self, signum=None, frame=None) -> None:
+        """Handle terminal resize."""
+        new_width, new_height = self._terminal.get_size()
+        if new_width != self._width or new_height != self._height:
+            self._width = new_width
+            self._height = new_height
+            self._buffer = OptimizedBuffer(self._width, self._height)
+            if self._root:
+                self._root._width = new_width
+                self._root._height = new_height
+            self._dirty = True
+
     def run(self) -> None:
         """Main run loop."""
         self._running = True
 
+        old_handler = None
+        if hasattr(signal, "SIGWINCH"):
+            old_handler = signal.signal(signal.SIGWINCH, self._handle_resize)
+
         try:
             self.setup()
+            self._handle_resize()
 
             while self._running and not self._destroyed:
                 self.process_input()
-
-                new_width, new_height = self._terminal.get_size()
-                if new_width != self._width or new_height != self._height:
-                    self._width = new_width
-                    self._height = new_height
-                    self._buffer = OptimizedBuffer(self._width, self._height)
-                    if self._root:
-                        self._root._width = new_width
-                        self._root._height = new_height
-                    self._dirty = True
 
                 if self._dirty:
                     self.render()
@@ -255,6 +263,8 @@ class NativeCliRenderer:
                 time.sleep(self._frame_time)
 
         finally:
+            if old_handler is not None:
+                signal.signal(signal.SIGWINCH, old_handler)
             self.cleanup()
 
     def stop(self) -> None:
