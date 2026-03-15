@@ -233,14 +233,11 @@ class CliRenderer:
         self._dirty = False
 
     def present(self) -> None:
-        """Output the buffer to the terminal only if content changed."""
+        """Output the buffer to the terminal."""
         output = self._buffer.render_to_string()
-
-        if output != self._last_frame_content:
-            self._last_frame_content = output
-            output = ANSI.set_cursor_position(1, 1) + output
-            self._stdout.write(output)
-            self._stdout.flush()
+        output = ANSI.set_cursor_position(1, 1) + output
+        self._stdout.write(output)
+        self._stdout.flush()
 
     def read_input(self, timeout: float = 0.01) -> List[str]:
         """Read input from the terminal."""
@@ -346,10 +343,8 @@ class CliRenderer:
 
             while self._running and not self._destroyed:
                 self.process_input()
-
-                if self._dirty:
-                    self.render()
-                    self.present()
+                self.render()
+                self.present()
 
                 import time
 
