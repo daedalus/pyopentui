@@ -14,10 +14,14 @@ def main():
     # Note: stdin.isatty() may return False in SSH even though terminal works
     # We try anyway and let the renderer handle any errors
 
+    print("Creating renderer...", file=sys.stderr)
     renderer = CliRenderer(80, 24)
+    print("Renderer created", file=sys.stderr)
 
     try:
+        print("Setting up renderer...", file=sys.stderr)
         renderer.setup()
+        print("Setup complete", file=sys.stderr)
 
         root = renderer.root
 
