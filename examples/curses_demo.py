@@ -7,6 +7,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from pyopentui import CursesRenderer, BoxRenderable, TextRenderable, Input, Textarea, RGBA
+from pyopentui.renderer import KeyEvent
 
 
 def main():
@@ -14,11 +15,21 @@ def main():
 
     output_text = None
     input_field = None
+    input_field2 = None
+    focusables = []
+    current_focus = 0
 
     def on_key(event):
-        nonlocal output_text, input_field
+        nonlocal current_focus
+
         if event.name == "escape":
             renderer.stop()
+            return True
+        elif event.name == "tab":
+            focusables[current_focus].blur()
+            current_focus = (current_focus + 1) % len(focusables)
+            focusables[current_focus].focus()
+            renderer.request_render()
             return True
         elif event.name == "enter":
             if input_field and input_field.value:
@@ -30,7 +41,13 @@ def main():
                 input_field.value = ""
                 renderer.request_render()
             return True
-        return False
+        else:
+            focused = focusables[current_focus]
+            if hasattr(focused, "handle_key_press"):
+                handled = focused.handle_key_press(event)
+                if handled:
+                    renderer.request_render()
+            return True
 
     renderer.on("key", on_key)
 
@@ -76,7 +93,7 @@ def main():
     )
     input_box.add(input_field)
     root.add(input_box)
-    input_field.focus()
+    focusables.append(input_field)
 
     output_box = BoxRenderable(
         renderer,
@@ -99,9 +116,35 @@ def main():
     output_box.add(output_text)
     root.add(output_box)
 
+    input_box2 = BoxRenderable(
+        renderer,
+        x=1,
+        y=14,
+        width=40,
+        height=8,
+        border=True,
+        border_color=RGBA.from_hex("#ff6b6b"),
+        background_color=RGBA.from_hex("#16213e"),
+        title="Another input",
+    )
+    input_field2 = Input(
+        renderer,
+        x=1,
+        y=1,
+        placeholder="Tab to switch here...",
+        max_length=30,
+    )
+    input_box2.add(input_field2)
+    root.add(input_box2)
+    focusables.append(input_field2)
+
+    if focusables:
+        focusables[0].focus()
+        current_focus = 0
+
     renderer.request_render()
     renderer.run()
-    print("Thanks for trying PyOpenTUI!")
+    print("\nThanks for trying PyOpenTUI!")
 
 
 if __name__ == "__main__":
