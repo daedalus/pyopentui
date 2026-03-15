@@ -11,9 +11,8 @@ from pyopentui import CliRenderer, BoxRenderable, TextRenderable, RGBA
 
 
 def main():
-    if not sys.stdin.isatty():
-        print("Error: Need interactive terminal")
-        sys.exit(1)
+    # Note: stdin.isatty() may return False in SSH even though terminal works
+    # We try anyway and let the renderer handle any errors
 
     renderer = CliRenderer(80, 24)
 
