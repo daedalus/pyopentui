@@ -149,15 +149,18 @@ class NativeCliRenderer:
         if self._use_alternate_screen:
             os.write(2, b"alt_screen ")
             self._terminal.enter_alternate_screen()
+            os.write(2, b"done_alt ")
 
+        os.write(2, b"mouse ")
         if self._use_mouse:
-            os.write(2, b"mouse ")
             self._terminal.enable_mouse_tracking()
 
         os.write(2, b"cursor ")
         self._terminal.hide_cursor()
+
         os.write(2, b"clear ")
         self._terminal.clear_screen()
+
         os.write(2, b"home ")
         self._terminal.home_cursor()
 

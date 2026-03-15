@@ -200,7 +200,12 @@ class Terminal:
 
     def enter_alternate_screen(self) -> None:
         """Enter alternate screen buffer."""
-        self.write("\033[?1049h")
+        try:
+            self.write("\033[?1049h")
+        except Exception as e:
+            import sys as _sys
+
+            _sys.stderr.write(f"enter_alternate_screen error: {e}\n")
 
     def exit_alternate_screen(self) -> None:
         """Exit alternate screen buffer."""
