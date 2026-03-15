@@ -53,6 +53,10 @@ class ANSI:
         return "\x1b[u"
 
     @staticmethod
+    def set_cursor_position(row: int, col: int) -> str:
+        return f"\x1b[{row};{col}H"
+
+    @staticmethod
     def clear_screen() -> str:
         return "\x1b[2J"
 

@@ -114,6 +114,9 @@ class CliRenderer:
 
     def setup(self) -> None:
         """Set up the terminal for rendering."""
+        self._stdout.write(ANSI.clear_screen())
+        self._stdout.write(ANSI.set_cursor_position(1, 1))
+
         if self._use_alternate_screen:
             self._stdout.write(ANSI.set_alternate_screen(True))
 
@@ -228,7 +231,7 @@ class CliRenderer:
 
     def present(self) -> None:
         """Output the buffer to the terminal."""
-        output = self._buffer.render_to_string()
+        output = ANSI.set_cursor_position(1, 1) + self._buffer.render_to_string()
         self._stdout.write(output)
         self._stdout.flush()
 
