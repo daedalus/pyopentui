@@ -21,7 +21,7 @@ from .renderables import (
     Textarea,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.0.1"
 
 __all__ = [
     "RGBA",
