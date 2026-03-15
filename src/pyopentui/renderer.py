@@ -81,6 +81,7 @@ class NativeCliRenderer:
         self._buffer = OptimizedBuffer(self._width, self._height)
         self._next_buffer = OptimizedBuffer(self._width, self._height)
         self._last_frame_content: Optional[str] = None
+        self._last_buffer_hash: Optional[int] = None
 
         self._background_color = RGBA.from_values(0, 0, 0, 1)
         self._root: Optional[RootRenderable] = None
@@ -183,11 +184,12 @@ class NativeCliRenderer:
 
     def present(self) -> None:
         """Output the buffer to the terminal only if content changed."""
-        output = ANSI.set_cursor_position(1, 1) + self._buffer.render_to_string()
+        buffer_content = self._buffer.render_to_string()
 
         # Only output if content changed
-        if output != self._last_frame_content:
-            self._last_frame_content = output
+        if buffer_content != self._last_frame_content:
+            self._last_frame_content = buffer_content
+            output = ANSI.set_cursor_position(1, 1) + buffer_content
             self._terminal.write(output)
 
     def process_input(self) -> None:
