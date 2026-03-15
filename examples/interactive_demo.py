@@ -5,15 +5,13 @@ import sys
 import os
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from pyopentui import CliRenderer, BoxRenderable, TextRenderable, RGBA
+from pyopentui import CliRenderer, BoxRenderable, TextRenderable, Input, Textarea, RGBA
 
 
 def main():
-    import time
-
-    renderer = CliRenderer(80, 24)
+    renderer = CliRenderer(100, 30)
 
     terminal = renderer._terminal
     terminal.make_nonblocking()
@@ -28,7 +26,7 @@ def main():
             renderer,
             x=1,
             y=1,
-            width=78,
+            width=98,
             height=3,
             border=True,
             border_color=RGBA.from_hex("#00ff00"),
@@ -43,45 +41,86 @@ def main():
         header.add(title)
         root.add(header)
 
-        # Counter
-        counter = 0
-        counter_box = BoxRenderable(
+        # Input box for typing
+        input_box = BoxRenderable(
             renderer,
-            x=25,
-            y=8,
-            width=30,
+            x=5,
+            y=6,
+            width=40,
+            height=8,
+            border=True,
+            border_color=RGBA.from_hex("#4ecdc4"),
+            background_color=RGBA.from_hex("#16213e"),
+            title="Type here",
+        )
+        input_field = Input(
+            renderer,
+            placeholder="Type text and press Enter...",
+            max_length=30,
+        )
+        input_box.add(input_field)
+        root.add(input_box)
+        input_field.focus()
+
+        # Output text area - shows entered text
+        output_box = BoxRenderable(
+            renderer,
+            x=50,
+            y=6,
+            width=45,
+            height=18,
+            border=True,
+            border_color=RGBA.from_hex("#ffe66d"),
+            background_color=RGBA.from_hex("#16213e"),
+            title="History",
+        )
+        output_text = Textarea(
+            renderer,
+            value="",
+            placeholder="Entered text will appear here...",
+        )
+        output_box.add(output_text)
+        root.add(output_box)
+
+        # Another input box for demonstration
+        input_box2 = BoxRenderable(
+            renderer,
+            x=5,
+            y=16,
+            width=40,
             height=8,
             border=True,
             border_color=RGBA.from_hex("#ff6b6b"),
             background_color=RGBA.from_hex("#16213e"),
-            title="Counter",
+            title="Another input",
         )
-
-        counter_text = TextRenderable(
+        input_field2 = Input(
             renderer,
-            f"Count: {counter}",
-            color=RGBA.from_hex("#ffffff"),
-            bold=True,
+            placeholder="Tab to switch here...",
+            max_length=30,
         )
-        counter_box.add(counter_text)
-        root.add(counter_box)
+        input_box2.add(input_field2)
+        root.add(input_box2)
+
+        # Collect all focusable elements
+        focusables = [input_field, input_field2]
+        current_focus = 0
 
         # Instructions
         instructions = BoxRenderable(
             renderer,
-            x=10,
-            y=18,
-            width=60,
-            height=4,
+            x=5,
+            y=26,
+            width=90,
+            height=3,
             border=True,
             border_color=RGBA.from_hex("#6c5ce7"),
             background_color=RGBA.from_hex("#16213e"),
             title="Controls",
         )
-
         inst_text = TextRenderable(
             renderer,
-            "SPACE/ENTER: Increment | R: Reset | ESC: Quit",
+            "TYPE: Add text | ENTER: Append to history | TAB: Switch focus | ESC: Quit",
             color=RGBA.from_hex("#aaaaaa"),
         )
         instructions.add(inst_text)
@@ -92,7 +131,7 @@ def main():
         renderer.render()
         renderer.present()
 
-        # Run loop - use terminal.read_key for SSH-compatible input
+        # Run loop
         while renderer.is_running:
             key = terminal.read_key(0.02)
 
@@ -102,14 +141,28 @@ def main():
 
                 if name == "escape":
                     renderer.stop()
-                elif name == "enter" or raw == " ":
-                    counter += 1
-                    counter_text._text = f"Count: {counter}"
+                elif name == "tab":
+                    # Switch focus
+                    focusables[current_focus].blur()
+                    current_focus = (current_focus + 1) % len(focusables)
+                    focusables[current_focus].focus()
                     renderer.request_render()
-                elif name == "backspace" or raw == "r":
-                    counter = 0
-                    counter_text._text = f"Count: {counter}"
-                    renderer.request_render()
+                elif name == "enter":
+                    # Append input value to output
+                    text = input_field.value
+                    if text:
+                        current_value = output_text.value
+                        if current_value:
+                            output_text.value = current_value + "\n" + text
+                        else:
+                            output_text.value = text
+                        input_field.value = ""  # Clear input
+                        renderer.request_render()
+                else:
+                    # Pass key to focused element
+                    focused = focusables[current_focus]
+                    if hasattr(focused, "handle_key_press"):
+                        focused.handle_key_press(key)
 
             if renderer._dirty:
                 renderer.render()
