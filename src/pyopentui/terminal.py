@@ -165,18 +165,22 @@ class Terminal:
 
     def write(self, data: str) -> None:
         """Write to stdout."""
+        import sys as _sys
+
         try:
             self.stdout.write(data)
             self.stdout.flush()
-        except:
-            pass
+        except Exception as e:
+            _sys.stderr.write(f"Terminal.write error: {e}\n")
 
     def write_bytes(self, data: bytes) -> None:
         """Write bytes to stdout."""
+        import sys as _sys
+
         try:
             os.write(self.stdout.fileno(), data)
-        except:
-            pass
+        except Exception as e:
+            _sys.stderr.write(f"Terminal.write_bytes error: {e}\n")
 
     def clear_screen(self) -> None:
         """Clear the screen."""
@@ -200,11 +204,11 @@ class Terminal:
 
     def enter_alternate_screen(self) -> None:
         """Enter alternate screen buffer."""
+        import sys as _sys
+
         try:
             self.write("\033[?1049h")
         except Exception as e:
-            import sys as _sys
-
             _sys.stderr.write(f"enter_alternate_screen error: {e}\n")
 
     def exit_alternate_screen(self) -> None:
