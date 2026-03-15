@@ -67,6 +67,7 @@ class CliRenderer:
 
         self._buffer = OptimizedBuffer(width, height)
         self._next_buffer = OptimizedBuffer(width, height)
+        self._last_frame_content: Optional[str] = None
 
         self._background_color = RGBA.from_values(0, 0, 0, 1)
         self._root: Optional[RootRenderable] = None
@@ -232,10 +233,14 @@ class CliRenderer:
         self._dirty = False
 
     def present(self) -> None:
-        """Output the buffer to the terminal."""
-        output = ANSI.set_cursor_position(1, 1) + self._buffer.render_to_string()
-        self._stdout.write(output)
-        self._stdout.flush()
+        """Output the buffer to the terminal only if content changed."""
+        output = self._buffer.render_to_string()
+
+        if output != self._last_frame_content:
+            self._last_frame_content = output
+            output = ANSI.set_cursor_position(1, 1) + output
+            self._stdout.write(output)
+            self._stdout.flush()
 
     def read_input(self, timeout: float = 0.01) -> List[str]:
         """Read input from the terminal."""
