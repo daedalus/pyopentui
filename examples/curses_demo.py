@@ -12,8 +12,27 @@ from pyopentui import CursesRenderer, BoxRenderable, TextRenderable, Input, Text
 def main():
     renderer = CursesRenderer()
 
-    renderer.on("key", lambda e: handle_key(renderer, e))
-    renderer.on("escape", lambda: renderer.stop())
+    output_text = None
+    input_field = None
+
+    def on_key(event):
+        nonlocal output_text, input_field
+        if event.name == "escape":
+            renderer.stop()
+            return True
+        elif event.name == "enter":
+            if input_field and input_field.value:
+                text = input_field.value
+                if output_text.value:
+                    output_text.value = output_text.value + "\n" + text
+                else:
+                    output_text.value = text
+                input_field.value = ""
+                renderer.request_render()
+            return True
+        return False
+
+    renderer.on("key", on_key)
 
     renderer.setup()
     root = renderer.root
@@ -41,7 +60,7 @@ def main():
         renderer,
         x=1,
         y=4,
-        width="40%",
+        width=40,
         height=8,
         border=True,
         border_color=RGBA.from_hex("#4ecdc4"),
@@ -80,15 +99,9 @@ def main():
     output_box.add(output_text)
     root.add(output_box)
 
-    focusables = [input_field]
-    current_focus = 0
-
     renderer.request_render()
     renderer.run()
-
-
-def handle_key(renderer, event):
-    pass
+    print("Thanks for trying PyOpenTUI!")
 
 
 if __name__ == "__main__":

@@ -427,7 +427,8 @@ try:
             self._init_curses(stdscr)
 
             try:
-                self.setup()
+                if not self._root:
+                    self.setup()
 
                 while self._running and not self._destroyed:
                     try:
