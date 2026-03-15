@@ -80,6 +80,7 @@ class NativeCliRenderer:
 
         self._buffer = OptimizedBuffer(self._width, self._height)
         self._next_buffer = OptimizedBuffer(self._width, self._height)
+        self._last_frame_content: Optional[str] = None
 
         self._background_color = RGBA.from_values(0, 0, 0, 1)
         self._root: Optional[RootRenderable] = None
