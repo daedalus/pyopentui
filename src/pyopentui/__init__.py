@@ -21,6 +21,7 @@ from .renderables import (
     Input,
     Textarea,
 )
+from .theme import Theme
 
 try:
     from .renderer import CursesRenderer
@@ -49,4 +50,5 @@ __all__ = [
     "ScrollBar",
     "Input",
     "Textarea",
+    "Theme",
 ]
