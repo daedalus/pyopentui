@@ -2,6 +2,8 @@
 
 A Python port of OpenTUI - a native terminal UI framework.
 
+![showcase](files/showcase.png)
+
 ## Overview
 
 PyOpenTUI is a terminal UI framework that provides a component-based architecture for building complex terminal applications. It's a pure Python implementation with no external dependencies.
