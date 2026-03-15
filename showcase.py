@@ -111,14 +111,23 @@ def main():
         renderer.render()
         renderer.present()
 
-        # Run loop - render every frame for testing
+        # Run loop - use blocking input
         while renderer.is_running:
-            # Simple input check without blocking
+            # Blocking input read
             try:
-                if select.select([sys.stdin], [], [], 0)[0]:
-                    key = renderer._input_reader.read_key()
-                    if key:
-                        renderer.emit("key", key)
+                ch = sys.stdin.read(1)
+                if ch:
+                    # Map to event
+                    if ch == "q" or ch == "\x1b":
+                        renderer.stop()
+                    elif ch == "\n" or ch == " ":
+                        counter += 1
+                        counter_text._text = f"Count: {counter}"
+                        renderer.request_render()
+                    elif ch == "r":
+                        counter = 0
+                        counter_text._text = f"Count: {counter}"
+                        renderer.request_render()
             except:
                 pass
 

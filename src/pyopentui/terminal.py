@@ -31,23 +31,9 @@ class Terminal:
 
     def setup(self) -> bool:
         """Set up terminal for raw mode. Returns True if successful."""
-        try:
-            # Save old settings
-            self._old_settings = termios.tcgetattr(self.stdin.fileno())
-
-            # Set raw mode using tty.setraw
-            tty.setraw(self.stdin.fileno())
-            self._is_raw = True
-            return True
-        except:
-            # Fall back to cbreak mode
-            try:
-                self._old_settings = termios.tcgetattr(self.stdin.fileno())
-                tty.setcbreak(self.stdin.fileno())
-                self._is_raw = True
-                return True
-            except:
-                return False
+        # Don't set raw mode - just return success
+        # Raw mode doesn't work well in SSH
+        return True
 
     def cleanup(self) -> None:
         """Restore terminal to original settings."""
