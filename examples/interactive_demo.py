@@ -8,6 +8,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from pyopentui import CliRenderer, BoxRenderable, TextRenderable, Input, Textarea, RGBA
+from pyopentui.renderer import KeyEvent
 
 
 def main():
@@ -159,10 +160,14 @@ def main():
                         input_field.value = ""  # Clear input
                         renderer.request_render()
                 else:
-                    # Pass key to focused element
+                    # Pass key to focused element - convert dict to KeyEvent
                     focused = focusables[current_focus]
                     if hasattr(focused, "handle_key_press"):
-                        focused.handle_key_press(key)
+                        key_event = KeyEvent(
+                            name=key.get("name", ""),
+                            sequence=key.get("raw", ""),
+                        )
+                        focused.handle_key_press(key_event)
 
             if renderer._dirty:
                 renderer.render()
