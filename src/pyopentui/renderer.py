@@ -83,8 +83,8 @@ class CliRenderer:
         self._fps = 0
         self._last_fps_time = 0.0
 
-        self._use_alternate_screen = True
-        self._use_mouse = True
+        self._use_alternate_screen = False
+        self._use_mouse = False
 
         self._current_focused_renderable: Optional[Renderable] = None
 
@@ -133,10 +133,12 @@ class CliRenderer:
 
     def cleanup(self) -> None:
         """Clean up the terminal after rendering."""
+        self._stdout.write(ANSI.set_cursor_position(1, 1))
         self._stdout.write(ANSI.set_alternate_screen(False))
         self._stdout.write(ANSI.disable_mouse_tracking())
         self._stdout.write(ANSI.set_cursor_visible(True))
         self._stdout.write(ANSI.RESET)
+        self._stdout.write("\n")
         self._stdout.flush()
 
         if hasattr(self, "_old_term_settings"):
