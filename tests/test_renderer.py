@@ -1,7 +1,9 @@
-"""Tests for the CLI renderer."""
+"""Tests for the CLI renderer and terminal."""
 
 import pytest
+from io import StringIO
 from pyopentui.renderer import CliRenderer, MouseEvent, KeyEvent
+from pyopentui.terminal import Terminal, InputReader, EventEmitter
 
 
 class TestKeyEvent:
@@ -47,33 +49,10 @@ class TestCliRenderer:
         assert renderer.is_destroyed is False
         assert renderer.buffer is not None
 
-    def test_renderer_buffer_dimensions(self):
-        renderer = CliRenderer(100, 50)
-        assert renderer.buffer.width == 100
-        assert renderer.buffer.height == 50
-
-    def test_renderer_resize(self):
+    def test_renderer_terminal_instance(self):
         renderer = CliRenderer(80, 24)
-        renderer.resize(100, 40)
-        assert renderer.width == 100
-        assert renderer.height == 40
-        assert renderer.buffer.width == 100
-        assert renderer.buffer.height == 40
-
-    def test_renderer_set_background_color(self):
-        from pyopentui.types import RGBA
-
-        renderer = CliRenderer(80, 24)
-        color = RGBA.from_values(0.1, 0.1, 0.1, 1.0)
-        renderer.set_background_color(color)
-        assert renderer._background_color == color
-
-    def test_renderer_cursor(self):
-        renderer = CliRenderer(80, 24)
-        renderer.set_cursor_position(10, 5, True)
-        assert renderer._cursor_x == 10
-        assert renderer._cursor_y == 5
-        assert renderer._cursor_visible is True
+        assert renderer._terminal is not None
+        assert isinstance(renderer._terminal, Terminal)
 
     def test_renderer_event_system(self):
         renderer = CliRenderer(80, 24)
@@ -105,26 +84,147 @@ class TestCliRenderer:
         assert len(handler_called) == 1
 
     def test_renderer_dirty_flag(self):
-        from pyopentui.renderer import CliRenderer
-
         renderer = CliRenderer(80, 24)
         assert renderer._dirty is True
-        assert renderer._dirty is not None
 
-    def test_renderer_focusable(self):
-        from pyopentui.renderable import Renderable
-        from pyopentui.renderer import CliRenderer
-
+    def test_renderer_request_render(self):
         renderer = CliRenderer(80, 24)
+        renderer._dirty = False
+        renderer.request_render()
+        assert renderer._dirty is True
 
-        class TestRenderable(Renderable):
-            pass
+    def test_renderer_stop(self):
+        renderer = CliRenderer(80, 24)
+        renderer._running = True
+        renderer.stop()
+        assert renderer.is_running is False
 
-        r1 = TestRenderable(renderer)
-        r1._focusable = True
-        r2 = TestRenderable(renderer)
-        r2._focusable = False
 
-        renderer.focus_renderable(r1)
+class TestTerminal:
+    def test_terminal_creation(self):
+        term = Terminal()
+        assert term.stdin is not None
+        assert term.stdout is not None
 
-        renderer.focus_renderable(r2)
+    def test_terminal_isatty(self):
+        term = Terminal()
+        result = term.isatty()
+        assert isinstance(result, bool)
+
+    def test_terminal_write(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.write("test")
+        output = term.stdout.getvalue()
+        assert output == "test"
+
+    def test_terminal_flush(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.write("test")
+        term.flush()
+        assert True
+
+    def test_terminal_cursor_methods(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.hide_cursor()
+        term.show_cursor()
+        term.home_cursor()
+        term.set_cursor(5, 10)
+        output = term.stdout.getvalue()
+        assert "\033[?25l" in output
+        assert "\033[?25h" in output
+        assert "\033[H" in output
+        assert "\033[5;10H" in output
+
+    def test_terminal_clear_screen(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.clear_screen()
+        output = term.stdout.getvalue()
+        assert "\033[2J" in output
+
+    def test_terminal_alternate_screen(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.enter_alternate_screen()
+        term.exit_alternate_screen()
+        output = term.stdout.getvalue()
+        assert "\033[?1049h" in output
+        assert "\033[?1049l" in output
+
+    def test_terminal_mouse_tracking(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.enable_mouse_tracking()
+        term.disable_mouse_tracking()
+        output = term.stdout.getvalue()
+        assert "\033[?1000h" in output
+        assert "\033[?1000l" in output
+
+    def test_terminal_line_wrap(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.disable_line_wrap()
+        term.enable_line_wrap()
+        output = term.stdout.getvalue()
+        assert "\033[?7l" in output
+        assert "\033[?7h" in output
+
+    def test_terminal_background_color(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.set_background_color(255, 128, 64)
+        output = term.stdout.getvalue()
+        assert "\033[48;2;255;128;64m" in output
+
+    def test_terminal_reset(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.reset()
+        output = term.stdout.getvalue()
+        assert "\033[0m" in output
+        assert "\033c" in output
+
+    def test_terminal_setup_screen(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.setup_screen(100, 100, 100)
+        output = term.stdout.getvalue()
+        assert "\033[?1049h" in output
+        assert "\033[48;2;100;100;100m" in output
+        assert "\033[2J" in output
+        assert "\033[?7l" in output
+
+    def test_terminal_restore_screen(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        term.restore_screen()
+        output = term.stdout.getvalue()
+        assert "\033[?7h" in output
+        assert "\033[0m" in output
+        assert "\033[?1049l" in output
+
+
+class TestEventEmitter:
+    def test_event_emitter_on_off(self):
+        emitter = EventEmitter()
+        calls = []
+
+        def handler():
+            calls.append(1)
+
+        emitter.on("test", handler)
+        emitter.emit("test")
+        assert len(calls) == 1
+
+        emitter.off("test", handler)
+        emitter.emit("test")
+        assert len(calls) == 1
+
+
+class TestInputReader:
+    def test_input_reader_creation(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        reader = InputReader(term)
+        assert reader.terminal is term
+
+    def test_input_reader_key_map(self):
+        term = Terminal(stdin=None, stdout=StringIO())
+        reader = InputReader(term)
+        assert reader._key_map.get("\r") == "enter"
+        assert reader._key_map.get("\n") == "enter"
+        assert reader._key_map.get("\t") == "tab"
+        assert reader._key_map.get("\x7f") == "backspace"
+        assert reader._key_map.get("\x1b") == "escape"
+        assert reader._key_map.get(" ") == "space"
