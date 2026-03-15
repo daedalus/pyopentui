@@ -3,6 +3,8 @@
 
 import sys
 import os
+import time
+import select
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -333,6 +335,9 @@ def create_demo():
 
 
 def main():
+    import time
+    import select
+
     # Enable alternate screen and set background
     sys.stdout.write("\033[?1049h")
     sys.stdout.write("\033[48;2;15;15;35m")
@@ -344,8 +349,17 @@ def main():
     sys.stdout.write(output)
     sys.stdout.flush()
 
+    # Wait for user input or timeout
+    try:
+        if select.select([sys.stdin], [], [], 3)[0]:
+            sys.stdin.read(1)
+    except:
+        time.sleep(3)
+
+    # Restore terminal
     sys.stdout.write("\n\n\033[0m")
     sys.stdout.write("\033[?1049l")
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":
