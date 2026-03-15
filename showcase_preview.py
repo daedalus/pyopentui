@@ -127,7 +127,7 @@ def main():
         if select.select([sys.stdin], [], [], 3)[0]:
             sys.stdin.read(1)
     except:
-        time.sleep(3)
+        time.sleep(5)
 
     # Restore terminal
     sys.stdout.write("\033[?7h")  # Re-enable line wrapping

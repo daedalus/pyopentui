@@ -223,29 +223,16 @@ class Buffer:
             self.set_cell(x + width - 1, row, v_line, fg, bg)
 
         if title:
-            # Calculate display width (emoji count as 2)
-            def display_width(s):
-                w = 0
-                for c in s:
-                    if ord(c) > 0xFFFF:
-                        w += 2  # emoji
-                    else:
-                        w += 1
-                return w
+            # For simplicity, place title after left border without centering
+            # This avoids emoji width issues
+            title_start = x + 2  # After left border
 
-            title_display_width = display_width(title)
-            title_width = min(title_display_width, width - 2)
-            title_start = x + (width - title_width) // 2
-
-            # Handle emoji in title
-            pos = 0
-            for i, char in enumerate(title):
-                if pos >= title_width:
+            # Just draw first N chars that fit
+            max_title_len = width - 4  # Leave space for borders
+            for i, char in enumerate(title[:max_title_len]):
+                if i >= max_title_len:
                     break
-                char_width = 2 if ord(char) > 0xFFFF else 1
-                if pos + char_width <= title_width:
-                    self.set_cell(title_start + pos, y, char, fg, bg)
-                pos += char_width
+                self.set_cell(title_start + i, y, char, fg, bg)
 
     def render_to_string(self) -> str:
         from .ansi import ANSI, color_to_ansi_fg, color_to_ansi_bg
