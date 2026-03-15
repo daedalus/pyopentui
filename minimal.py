@@ -7,6 +7,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from pyopentui import CliRenderer, BoxRenderable, TextRenderable, RGBA
+from pyopentui.ansi import ANSI
 
 
 def main():
@@ -42,16 +43,24 @@ def main():
         box.add(text)
         root.add(box)
 
-        # Force render
-        renderer._dirty = True
-        renderer.render()
-        renderer.present()
+        # Handle ESC to quit
+        def on_key(event):
+            if event.name == "escape":
+                renderer.stop()
+                return True
+            return False
 
-        # Keep running
-        import time
+        renderer.on("key", on_key)
 
-        for _ in range(100):
-            time.sleep(0.1)
+        # Render loop - keep rendering until ESC
+        while renderer.is_running:
+            renderer.process_input()
+            renderer._dirty = True  # Force render for testing
+            renderer.render()
+            renderer.present()
+            import time
+
+            time.sleep(0.033)  # ~30fps
 
     except KeyboardInterrupt:
         pass

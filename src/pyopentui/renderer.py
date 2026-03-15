@@ -84,8 +84,8 @@ class CliRenderer:
         self._fps = 0
         self._last_fps_time = 0.0
 
-        self._use_alternate_screen = True
-        self._use_mouse = True
+        self._use_alternate_screen = False  # Disabled for better compatibility
+        self._use_mouse = False
 
         self._current_focused_renderable: Optional[Renderable] = None
 
