@@ -11,17 +11,16 @@ from pyopentui import CliRenderer, BoxRenderable, TextRenderable, RGBA
 
 
 def main():
-    # Note: stdin.isatty() may return False in SSH even though terminal works
-    # We try anyway and let the renderer handle any errors
+    import os
 
-    print("Creating renderer...", file=sys.stderr)
+    os.write(1, b"Creating renderer...\n")
     renderer = CliRenderer(80, 24)
-    print("Renderer created", file=sys.stderr)
+    os.write(1, b"Renderer created\n")
 
     try:
-        print("Setting up renderer...", file=sys.stderr)
+        os.write(1, b"Setting up renderer...\n")
         renderer.setup()
-        print("Setup complete, adding elements...", file=sys.stderr)
+        os.write(1, b"Setup complete, adding elements...\n")
 
         root = renderer.root
 
@@ -108,21 +107,30 @@ def main():
         renderer.on("key", on_key)
 
         # Run loop
-        print("Starting run loop...", file=sys.stderr)
-        print(f"is_running = {renderer.is_running}", file=sys.stderr)
+        os.write(1, b"Starting run loop...\n")
+        os.write(1, f"is_running = {renderer.is_running}\n".encode())
 
         while renderer.is_running:
-            print("In loop...", file=sys.stderr)
+            os.write(1, b"In loop...\n")
             renderer.process_input()
             renderer.render()
             renderer.present()
+            import time
+
             time.sleep(0.05)
 
     except KeyboardInterrupt:
+        os.write(1, b"KeyboardInterrupt\n")
         pass
+    except Exception as e:
+        os.write(1, f"Exception: {e}\n".encode())
+        import traceback
+
+        traceback.print_exc()
     finally:
+        os.write(1, b"Cleaning up...\n")
         renderer.cleanup()
-        print("\nThanks for trying PyOpenTUI!")
+        os.write(1, b"\nThanks for trying PyOpenTUI!\n")
 
 
 if __name__ == "__main__":
