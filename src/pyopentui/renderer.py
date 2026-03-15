@@ -83,8 +83,8 @@ class CliRenderer:
         self._fps = 0
         self._last_fps_time = 0.0
 
-        self._use_alternate_screen = False
-        self._use_mouse = False
+        self._use_alternate_screen = True
+        self._use_mouse = True
 
         self._current_focused_renderable: Optional[Renderable] = None
 
@@ -341,8 +341,10 @@ class CliRenderer:
 
             while self._running and not self._destroyed:
                 self.process_input()
-                self.render()
-                self.present()
+
+                if self._dirty:
+                    self.render()
+                    self.present()
 
                 import time
 
