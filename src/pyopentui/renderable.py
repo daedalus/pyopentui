@@ -213,20 +213,30 @@ class Renderable(BaseRenderable):
 
     @property
     def width(self) -> int:
+        if isinstance(self._width_value, str) and self._width_value.endswith("%"):
+            if self.parent:
+                parent_width = self.parent.width
+                return int(parent_width * float(self._width_value[:-1]) / 100)
+            return 80
         return self._width_value
 
     @width.setter
-    def width(self, value: int) -> None:
+    def width(self, value) -> None:
         self._width = value
         self._width_value = value
         self.mark_dirty()
 
     @property
     def height(self) -> int:
+        if isinstance(self._height_value, str) and self._height_value.endswith("%"):
+            if self.parent:
+                parent_height = self.parent.height
+                return int(parent_height * float(self._height_value[:-1]) / 100)
+            return 24
         return self._height_value
 
     @height.setter
-    def height(self, value: int) -> None:
+    def height(self, value) -> None:
         self._height = value
         self._height_value = value
         self.mark_dirty()

@@ -29,6 +29,14 @@ class Terminal:
         """Check if we have a TTY."""
         return self.stdin.isatty()
 
+    def get_size(self) -> tuple:
+        """Get current terminal size. Returns (width, height)."""
+        try:
+            size = os.get_terminal_size()
+            return (size.columns, size.lines)
+        except OSError:
+            return (80, 24)
+
     def setup(self) -> bool:
         """Set up terminal for raw mode. Returns True if successful."""
         try:

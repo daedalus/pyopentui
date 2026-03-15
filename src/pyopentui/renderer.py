@@ -236,6 +236,16 @@ class NativeCliRenderer:
             while self._running and not self._destroyed:
                 self.process_input()
 
+                new_width, new_height = self._terminal.get_size()
+                if new_width != self._width or new_height != self._height:
+                    self._width = new_width
+                    self._height = new_height
+                    self._buffer = OptimizedBuffer(self._width, self._height)
+                    if self._root:
+                        self._root._width = new_width
+                        self._root._height = new_height
+                    self._dirty = True
+
                 if self._dirty:
                     self.render()
                     self.present()
