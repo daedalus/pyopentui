@@ -70,6 +70,9 @@ class BoxRenderable(Renderable):
     def render(self, buffer: Buffer, delta_time: float) -> None:
         self.render_self(buffer, delta_time)
 
+        offset_x = self.x + 1
+        offset_y = self.y + 1
+
         for child in self._children:
             child.render(buffer, delta_time)
 
