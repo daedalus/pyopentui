@@ -4,6 +4,7 @@
 import sys
 import os
 import time
+import select
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -110,13 +111,22 @@ def main():
         renderer.render()
         renderer.present()
 
-        # Run loop
+        # Run loop - render every frame for testing
         while renderer.is_running:
-            renderer.process_input()
+            # Simple input check without blocking
+            try:
+                if select.select([sys.stdin], [], [], 0)[0]:
+                    key = renderer._input_reader.read_key()
+                    if key:
+                        renderer.emit("key", key)
+            except:
+                pass
+
             if renderer._dirty:
                 renderer.render()
                 renderer.present()
-            time.sleep(0.05)
+
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
         pass
