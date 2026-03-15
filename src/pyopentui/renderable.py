@@ -387,6 +387,10 @@ class Renderable(BaseRenderable):
         if render_list is not None:
             render_list.append({"action": "render", "renderable": self})
 
+        sorted_children = sorted(self._children, key=lambda c: c.z_index)
+        for child in sorted_children:
+            child.update_layout(delta_time, render_list)
+
     def render(self, buffer: Buffer, delta_time: float) -> None:
         render_buffer = buffer
         if self._buffered and self._frame_buffer:
@@ -489,9 +493,6 @@ class RootRenderable(Renderable):
                 if renderable and not renderable.is_destroyed:
                     renderable.render(buffer, delta_time)
 
-    def calculate_layout(self) -> None:
-        pass
-
     def update_layout(self, delta_time: float, render_list: Optional[List[Any]] = None) -> None:
         if render_list is None:
             render_list = []
@@ -503,6 +504,9 @@ class RootRenderable(Renderable):
         sorted_children = sorted(self._children, key=lambda c: c.z_index)
         for child in sorted_children:
             child.update_layout(delta_time, render_list)
+
+    def calculate_layout(self) -> None:
+        pass
 
     def resize(self, width: int, height: int) -> None:
         self._width = width
