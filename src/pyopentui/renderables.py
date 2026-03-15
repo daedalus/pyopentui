@@ -70,17 +70,8 @@ class BoxRenderable(Renderable):
     def render(self, buffer: Buffer, delta_time: float) -> None:
         self.render_self(buffer, delta_time)
 
-        offset_x = 1 if self._border else 0
-        offset_y = 1 if self._border else 0
-
         for child in self._children:
-            child_x = child._x + offset_x
-            child_y = child._y + offset_y
-            child._x = child_x
-            child._y = child_y
             child.render(buffer, delta_time)
-            child._x = child._x - offset_x
-            child._y = child._y - offset_y
 
 
 class TextRenderable(Renderable):
