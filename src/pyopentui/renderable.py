@@ -148,8 +148,8 @@ class Renderable(BaseRenderable):
         self._y = y
         self._width: int = width or 0
         self._height: int = height or 0
-        self._width_value: int = 0
-        self._height_value: int = 0
+        self._width_value: int = width or 0
+        self._height_value: int = height or 0
 
         self._flex_grow = flex_grow
         self._flex_shrink = flex_shrink
