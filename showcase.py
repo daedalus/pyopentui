@@ -105,6 +105,11 @@ def main():
 
         renderer.on("key", on_key)
 
+        # Initial render
+        renderer.request_render()
+        renderer.render()
+        renderer.present()
+
         # Run loop
         while renderer.is_running:
             renderer.process_input()
