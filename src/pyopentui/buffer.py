@@ -222,16 +222,10 @@ class Buffer:
             self.set_cell(x, row, v_line, fg, bg)
             self.set_cell(x + width - 1, row, v_line, fg, bg)
 
-        if title:
-            # For simplicity, place title after left border without centering
-            # This avoids emoji width issues
-            title_start = x + 2  # After left border
-
-            # Just draw first N chars that fit
-            max_title_len = width - 4  # Leave space for borders
-            for i, char in enumerate(title[:max_title_len]):
-                if i >= max_title_len:
-                    break
+        if title and len(title) <= width - 2:
+            # Center title over the top border
+            title_start = x + (width - len(title)) // 2
+            for i, char in enumerate(title):
                 self.set_cell(title_start + i, y, char, fg, bg)
 
     def render_to_string(self) -> str:
