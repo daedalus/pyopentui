@@ -6,7 +6,7 @@ import os
 import time
 import select
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from pyopentui import (
     BoxRenderable,
@@ -19,6 +19,7 @@ from pyopentui import (
     TextAttributes,
 )
 from pyopentui.buffer import Buffer
+from pyopentui.terminal import Terminal
 
 
 def render_showcase():
@@ -110,17 +111,15 @@ def render_showcase():
 
 
 def main():
-    # Enable alternate screen and set background
-    sys.stdout.write("\033[?1049h")
-    sys.stdout.write("\033[48;2;15;15;35m")
-    sys.stdout.write("\033[2J")
-    sys.stdout.write("\033[?7l")  # Disable line wrapping
-    sys.stdout.flush()
+    term = Terminal()
+
+    # Set up screen using library methods
+    term.setup_screen(15, 15, 35)
 
     buf = render_showcase()
     output = buf.render_to_string()
-    sys.stdout.write(output)
-    sys.stdout.flush()
+    term.write(output)
+    term.flush()
 
     # Wait for user input or timeout
     try:
@@ -129,11 +128,9 @@ def main():
     except:
         time.sleep(5)
 
-    # Restore terminal
-    sys.stdout.write("\033[?7h")  # Re-enable line wrapping
-    sys.stdout.write("\033[0m")
-    sys.stdout.write("\033[?1049l")
-    sys.stdout.flush()
+    # Restore screen using library method
+    term.restore_screen()
+    term.flush()
 
 
 if __name__ == "__main__":

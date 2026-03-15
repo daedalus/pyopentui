@@ -248,6 +248,12 @@ class Terminal:
         """Write to stdout."""
         try:
             self.stdout.write(data)
+        except:
+            pass
+
+    def flush(self) -> None:
+        """Flush stdout."""
+        try:
             self.stdout.flush()
         except:
             pass
@@ -259,10 +265,6 @@ class Terminal:
         except:
             pass
 
-    def clear_screen(self) -> None:
-        """Clear the screen."""
-        self.write("\033[2J")
-
     def home_cursor(self) -> None:
         """Move cursor to home position."""
         self.write("\033[H")
@@ -270,6 +272,22 @@ class Terminal:
     def set_cursor(self, row: int, col: int) -> None:
         """Set cursor position."""
         self.write(f"\033[{row};{col}H")
+
+    def clear_screen(self) -> None:
+        """Clear the screen."""
+        self.write("\033[2J")
+
+    def set_background_color(self, r: int, g: int, b: int) -> None:
+        """Set background color using RGB."""
+        self.write(f"\033[48;2;{r};{g};{b}m")
+
+    def disable_line_wrap(self) -> None:
+        """Disable line wrapping."""
+        self.write("\033[?7l")
+
+    def enable_line_wrap(self) -> None:
+        """Enable line wrapping."""
+        self.write("\033[?7h")
 
     def show_cursor(self) -> None:
         """Show cursor."""
@@ -305,6 +323,21 @@ class Terminal:
         """Reset terminal."""
         self.write("\033[0m")
         self.write("\033c")
+
+    def setup_screen(self, r: int = 0, g: int = 0, b: int = 0) -> None:
+        """Set up screen for rendering - alternate screen, background, clear."""
+        self.enter_alternate_screen()
+        self.set_background_color(r, g, b)
+        self.clear_screen()
+        self.disable_line_wrap()
+        self.flush()
+
+    def restore_screen(self) -> None:
+        """Restore screen to normal - exit alternate screen, reset."""
+        self.enable_line_wrap()
+        self.reset()
+        self.exit_alternate_screen()
+        self.flush()
 
 
 class EventEmitter:
