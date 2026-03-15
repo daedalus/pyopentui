@@ -4,7 +4,6 @@
 import sys
 import os
 import time
-import select
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -12,15 +11,15 @@ from pyopentui import CliRenderer, BoxRenderable, TextRenderable, RGBA
 
 
 def main():
-    import os
     import time
 
     renderer = CliRenderer(80, 24)
 
+    terminal = renderer._terminal
+    terminal.make_nonblocking()
+
     try:
         renderer.setup()
-
-        root = renderer.root
 
         root = renderer.root
 
@@ -88,60 +87,55 @@ def main():
         instructions.add(inst_text)
         root.add(instructions)
 
-        # Key handler
-        def on_key(event):
-            nonlocal counter
-            if event.name == "escape":
-                renderer.stop()
-                return True
-            elif event.name == "enter" or event.sequence == " ":
-                counter += 1
-                counter_text._text = f"Count: {counter}"
-                renderer.request_render()
-            elif event.name == "backspace" or event.sequence == "r":
-                counter = 0
-                counter_text._text = f"Count: {counter}"
-                renderer.request_render()
-            return True
-
-        renderer.on("key", on_key)
-
         # Initial render
         renderer.request_render()
         renderer.render()
         renderer.present()
 
-        # Run loop - use blocking input
+        # Run loop - use terminal.read_key for SSH-compatible input
         while renderer.is_running:
-            # Blocking input read
-            try:
-                ch = sys.stdin.read(1)
-                if ch:
-                    # Map to event
-                    if ch == "q" or ch == "\x1b":
-                        renderer.stop()
-                    elif ch == "\n" or ch == " ":
-                        counter += 1
-                        counter_text._text = f"Count: {counter}"
-                        renderer.request_render()
-                    elif ch == "r":
-                        counter = 0
-                        counter_text._text = f"Count: {counter}"
-                        renderer.request_render()
-            except:
-                pass
+            key = terminal.read_key(0.02)
+
+            if key:
+                name = key.get("name", "")
+                raw = key.get("raw", "")
+
+                if name == "escape":
+                    renderer.stop()
+                elif name == "enter" or raw == " ":
+                    counter += 1
+                    counter_text._text = f"Count: {counter}"
+                    renderer.request_render()
+                elif name == "backspace" or raw == "r":
+                    counter = 0
+                    counter_text._text = f"Count: {counter}"
+                    renderer.request_render()
 
             if renderer._dirty:
                 renderer.render()
                 renderer.present()
 
-            time.sleep(0.1)
+            time.sleep(0.05)
 
     except KeyboardInterrupt:
         pass
     finally:
         renderer.cleanup()
+        try:
+            import subprocess
+
+            subprocess.run(
+                ["stty", "sane"],
+                stdin=sys.stdin,
+                stdout=sys.stdout,
+                stderr=subprocess.DEVNULL,
+                timeout=1,
+            )
+        except:
+            pass
         print("\nThanks for trying PyOpenTUI!")
+        sys.stdout.flush()
+        sys.stderr.flush()
 
 
 if __name__ == "__main__":

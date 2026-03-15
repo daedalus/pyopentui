@@ -31,9 +31,19 @@ class Terminal:
 
     def setup(self) -> bool:
         """Set up terminal for raw mode. Returns True if successful."""
-        # Don't set raw mode - just return success
-        # Raw mode doesn't work well in SSH
-        return True
+        try:
+            if self.stdin.isatty():
+                self._old_settings = termios.tcgetattr(self.stdin.fileno())
+                raw = list(termios.tcgetattr(self.stdin.fileno()))
+                raw[3] = raw[3] & ~(termios.ICANON | termios.ECHO | termios.ISIG)
+                raw[6][termios.VMIN] = 0
+                raw[6][termios.VTIME] = 0
+                termios.tcsetattr(self.stdin.fileno(), termios.TCSADRAIN, raw)
+                self._is_raw = True
+                return True
+        except:
+            pass
+        return False
 
     def cleanup(self) -> None:
         """Restore terminal to original settings."""
@@ -43,6 +53,27 @@ class Terminal:
             except:
                 pass
         self._is_raw = False
+        self.restore_flags()
+
+        if self._old_settings:
+            try:
+                termios.tcsetattr(self.stdin.fileno(), termios.TCSADRAIN, self._old_settings)
+            except:
+                pass
+        self._is_raw = False
+
+        self.restore_flags()
+
+        try:
+            subprocess.run(
+                ["reset", "-q"],
+                stdin=self.stdin,
+                stdout=self.stdout,
+                stderr=subprocess.DEVNULL,
+                timeout=0.5,
+            )
+        except:
+            pass
 
     def set_raw_mode(self, enabled: bool) -> bool:
         """Enable/disable raw mode. Returns True if successful."""
@@ -73,11 +104,28 @@ class Terminal:
     def read_char(self, timeout: float = 0.01) -> Optional[str]:
         """Read a single character. Returns None if no input."""
         try:
-            if select.select([self.stdin], [], [], timeout)[0]:
-                ch = self.stdin.read(1)
-                if ch:
-                    return ch
-        except (IOError, OSError):
+            import errno
+
+            fd = self.stdin.fileno()
+            while True:
+                try:
+                    ch = os.read(fd, 1)
+                    if ch:
+                        return ch.decode("utf-8", errors="replace")
+                except OSError as e:
+                    if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
+                        if timeout > 0:
+                            import time
+
+                            time.sleep(0.001)
+                            timeout -= 0.001
+                            if timeout <= 0:
+                                return None
+                            continue
+                        return None
+                    else:
+                        return None
+        except:
             pass
         return None
 
@@ -87,21 +135,80 @@ class Terminal:
         if not ch:
             return None
 
-        # Check for escape sequence
         if ord(ch) == 27:
             seq = ch
-            # Read more bytes for the sequence
-            while True:
-                more = self.read_char(0.001)
+            for _ in range(10):
+                more = self.read_char(0.002)
                 if more:
                     seq += more
-                    # Sequence ends when we get a letter (final char)
                     if more.isalpha() or more in "~[]()":
                         break
                 else:
                     break
             return seq
         return ch
+
+    def read_key(self, timeout: float = 0.01) -> Optional[dict]:
+        """Read a key with proper escape handling. Returns None if no input."""
+        ch = self.read_char(timeout)
+        if not ch:
+            return None
+
+        if ord(ch) == 27:
+            return {"type": "key", "name": "escape", "raw": ch}
+
+        if ch == "\x1b[":
+            seq = ch
+            for _ in range(10):
+                more = self.read_char(0.002)
+                if more:
+                    seq += more
+                    if more.isalpha() or more in "~[]()":
+                        break
+                else:
+                    break
+            codes = {
+                "A": "up",
+                "B": "down",
+                "C": "right",
+                "D": "left",
+                "H": "home",
+                "F": "end",
+                "P": "f1",
+                "Q": "f2",
+                "R": "f3",
+                "S": "f4",
+                "15~": "f5",
+                "17~": "f6",
+                "18~": "f7",
+                "19~": "f8",
+                "20~": "f9",
+                "21~": "f10",
+                "23~": "f11",
+                "24~": "f12",
+            }
+            suffix = seq[2:]
+            for code, name in codes.items():
+                if suffix == code:
+                    return {"type": "key", "name": name, "raw": seq}
+            if suffix.startswith(("1;", "2;", "3;", "4;", "5;", "6;")):
+                parts = suffix.split(";")
+                if len(parts) >= 2:
+                    mod = (
+                        parts[0]
+                        .replace("1;", "")
+                        .replace("2;", "shift-")
+                        .replace("3;", "alt-")
+                        .replace("4;", "shift-alt-")
+                    )
+                    base = parts[1]
+                    if base in codes:
+                        return {"type": "key", "name": mod + codes[base], "raw": seq}
+            return {"type": "key", "raw": seq}
+
+        key_map = {"\r": "enter", "\n": "enter", "\t": "tab", "\x7f": "backspace", " ": "space"}
+        name = key_map.get(ch, ch)
+        return {"type": "key", "name": name, "char": ch, "raw": ch}
 
     def read_available(self, timeout: float = 0.01) -> str:
         """Read all available input. Returns empty string if none."""
@@ -197,6 +304,7 @@ class Terminal:
     def reset(self) -> None:
         """Reset terminal."""
         self.write("\033[0m")
+        self.write("\033c")
 
 
 class EventEmitter:
