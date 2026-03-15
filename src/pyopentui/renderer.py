@@ -159,12 +159,16 @@ class NativeCliRenderer:
         self._terminal.clear_screen()
         _sys.stderr.write("home ")
         self._terminal.home_cursor()
-        _sys.stderr.write("flush ")
-        self._terminal.stdout.flush()
+
+        # Force flush
+        import sys as _sys2
+
+        _sys2.stderr.flush()
 
         _sys.stderr.write("root ")
         self._root = RootRenderable(self, self._width, self._height)
         _sys.stderr.write("done\n")
+        _sys2.stderr.flush()
 
     def cleanup(self) -> None:
         """Clean up terminal after rendering."""

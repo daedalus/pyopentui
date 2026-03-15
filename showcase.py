@@ -21,7 +21,9 @@ def main():
     try:
         print("Setting up renderer...", file=sys.stderr)
         renderer.setup()
-        print("Setup complete", file=sys.stderr)
+        print("Setup complete, adding elements...", file=sys.stderr)
+
+        root = renderer.root
 
         root = renderer.root
 
@@ -106,7 +108,11 @@ def main():
         renderer.on("key", on_key)
 
         # Run loop
+        print("Starting run loop...", file=sys.stderr)
+        print(f"is_running = {renderer.is_running}", file=sys.stderr)
+
         while renderer.is_running:
+            print("In loop...", file=sys.stderr)
             renderer.process_input()
             renderer.render()
             renderer.present()
