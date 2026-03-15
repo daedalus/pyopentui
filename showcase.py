@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
-"""PyOpenTUI Showcase - Demonstrates all features."""
+"""PyOpenTUI Showcase - Demonstrates all features (preview mode)."""
 
 import sys
 import os
-import tempfile
-
-
-def check_tty():
-    """Check if running in a proper TTY environment."""
-    if not sys.stdin.isatty():
-        return False
-    if not sys.stdout.isatty():
-        return False
-    return True
-
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from pyopentui import (
-    CliRenderer,
     BoxRenderable,
     TextRenderable,
     ScrollBox,
@@ -28,16 +16,37 @@ from pyopentui import (
     RGBA,
     TextAttributes,
 )
+from pyopentui.buffer import Buffer
+from pyopentui.renderable import RootRenderable
 
 
 def create_demo():
-    renderer = CliRenderer(100, 35)
-    renderer.setup()
+    buf = Buffer(100, 35)
+    buf.clear(RGBA.from_hex("#0f0f23"))
 
-    root = renderer.root
+    # Create a mock context for renderables
+    class MockCtx:
+        width = 100
+        height = 35
+        _background_color = RGBA.from_hex("#0f0f23")
+
+        def request_render(self):
+            pass
+
+        def focus(self, r):
+            pass
+
+        def blur(self):
+            pass
+
+        def emit(self, name, data):
+            pass
+
+    ctx = MockCtx()
+    root = RootRenderable(ctx, 100, 35)
 
     header = BoxRenderable(
-        renderer,
+        ctx,
         x=1,
         y=1,
         width=98,
@@ -48,7 +57,7 @@ def create_demo():
     )
 
     title = TextRenderable(
-        renderer,
+        ctx,
         "╔══════════════════════════════════════════════════════════════════╗\n"
         "║           🎨 PyOpenTUI Showcase - All Features Demo            ║\n"
         "╚══════════════════════════════════════════════════════════════════╝",
@@ -60,7 +69,7 @@ def create_demo():
     root.add(header)
 
     left_panel = BoxRenderable(
-        renderer,
+        ctx,
         x=1,
         y=5,
         width=47,
@@ -71,7 +80,7 @@ def create_demo():
     )
 
     left_title = TextRenderable(
-        renderer,
+        ctx,
         "📦 Box Components",
         color=RGBA.from_hex("#ff6b6b"),
         bold=True,
@@ -79,7 +88,7 @@ def create_demo():
     left_panel.add(left_title)
 
     box1 = BoxRenderable(
-        renderer,
+        ctx,
         x=2,
         y=3,
         width=20,
@@ -90,7 +99,7 @@ def create_demo():
         title="Simple Box",
     )
     box1_text = TextRenderable(
-        renderer,
+        ctx,
         "Box with border\nand title!",
         color=RGBA.from_hex("#4ecdc4"),
     )
@@ -98,7 +107,7 @@ def create_demo():
     left_panel.add(box1)
 
     box2 = BoxRenderable(
-        renderer,
+        ctx,
         x=24,
         y=3,
         width=20,
@@ -108,7 +117,7 @@ def create_demo():
         background_color=RGBA.from_hex("#1a1a2e"),
     )
     box2_text = TextRenderable(
-        renderer,
+        ctx,
         "Colored Box\nYellow border\nDark bg",
         color=RGBA.from_hex("#ffe66d"),
     )
@@ -116,7 +125,7 @@ def create_demo():
     left_panel.add(box2)
 
     box3 = BoxRenderable(
-        renderer,
+        ctx,
         x=2,
         y=11,
         width=20,
@@ -126,7 +135,7 @@ def create_demo():
         background_color=RGBA.from_hex("#0f0f23"),
     )
     box3_title = TextRenderable(
-        renderer,
+        ctx,
         "Text Styles",
         color=RGBA.from_hex("#95e1d3"),
         bold=True,
@@ -134,7 +143,7 @@ def create_demo():
     box3.add(box3_title)
 
     bold_text = TextRenderable(
-        renderer,
+        ctx,
         "This is BOLD text",
         color=RGBA.from_hex("#ffffff"),
         bold=True,
@@ -142,7 +151,7 @@ def create_demo():
     box3.add(bold_text)
 
     italic_text = TextRenderable(
-        renderer,
+        ctx,
         "This is italic text",
         color=RGBA.from_hex("#aaaaaa"),
         italic=True,
@@ -150,7 +159,7 @@ def create_demo():
     box3.add(italic_text)
 
     underline_text = TextRenderable(
-        renderer,
+        ctx,
         "This is underline",
         color=RGBA.from_hex("#666666"),
         underline=True,
@@ -160,7 +169,7 @@ def create_demo():
     left_panel.add(box3)
 
     input_box = BoxRenderable(
-        renderer,
+        ctx,
         x=24,
         y=11,
         width=20,
@@ -172,14 +181,14 @@ def create_demo():
     )
 
     input_field = Input(
-        renderer,
+        ctx,
         placeholder="Type here...",
         max_length=15,
     )
     input_box.add(input_field)
 
     right_box = TextRenderable(
-        renderer,
+        ctx,
         "Input focused!",
         color=RGBA.from_hex("#a8e6cf"),
     )
@@ -189,7 +198,7 @@ def create_demo():
     root.add(left_panel)
 
     right_panel = BoxRenderable(
-        renderer,
+        ctx,
         x=50,
         y=5,
         width=49,
@@ -200,7 +209,7 @@ def create_demo():
     )
 
     right_title = TextRenderable(
-        renderer,
+        ctx,
         "📝 Text & Components",
         color=RGBA.from_hex("#6c5ce7"),
         bold=True,
@@ -208,7 +217,7 @@ def create_demo():
     right_panel.add(right_title)
 
     colors_box = BoxRenderable(
-        renderer,
+        ctx,
         x=2,
         y=3,
         width=44,
@@ -233,7 +242,7 @@ def create_demo():
         y_pos = 2 + (i // 3) * 3
 
         color_box = BoxRenderable(
-            renderer,
+            ctx,
             x=x_pos,
             y=y_pos,
             width=12,
@@ -241,7 +250,7 @@ def create_demo():
             background_color=RGBA.from_hex(color),
         )
         color_text = TextRenderable(
-            renderer,
+            ctx,
             name,
             color=RGBA.from_hex("#000000"),
             bold=True,
@@ -252,7 +261,7 @@ def create_demo():
     right_panel.add(colors_box)
 
     scrollbox = ScrollBox(
-        renderer,
+        ctx,
         x=2,
         y=13,
         width=20,
@@ -261,7 +270,7 @@ def create_demo():
 
     for i in range(15):
         line = TextRenderable(
-            renderer,
+            ctx,
             f"Scroll line {i + 1}",
             color=RGBA.from_hex("#6c5ce7" if i % 2 == 0 else "#a29bfe"),
         )
@@ -270,7 +279,7 @@ def create_demo():
     right_panel.add(scrollbox)
 
     scrollbar = ScrollBar(
-        renderer,
+        ctx,
         x=23,
         y=13,
         height=7,
@@ -280,7 +289,7 @@ def create_demo():
     right_panel.add(scrollbar)
 
     textarea_box = BoxRenderable(
-        renderer,
+        ctx,
         x=27,
         y=13,
         width=19,
@@ -292,7 +301,7 @@ def create_demo():
     )
 
     textarea = Textarea(
-        renderer,
+        ctx,
         value="Multi-line\ntext input\nwidget here!",
     )
     textarea_box.add(textarea)
@@ -301,7 +310,7 @@ def create_demo():
     root.add(right_panel)
 
     footer = BoxRenderable(
-        renderer,
+        ctx,
         x=1,
         y=33,
         width=98,
@@ -310,39 +319,33 @@ def create_demo():
     )
 
     footer_text = TextRenderable(
-        renderer,
+        ctx,
         "↑↓←→ Navigate  |  Type in input  |  Press ESC to exit",
         color=RGBA.from_hex("#666666"),
     )
     footer.add(footer_text)
     root.add(footer)
 
-    def on_key(event):
-        if event.name == "escape":
-            renderer.stop()
-            return True
-        return False
+    # Render to buffer
+    root.render(buf, 0.016)
 
-    renderer.on("key", on_key)
-
-    return renderer
+    return buf
 
 
 def main():
-    if not check_tty():
-        print("Error: PyOpenTUI requires a terminal environment.")
-        print("Please run this in an interactive terminal.")
-        sys.exit(1)
+    # Enable alternate screen and set background
+    sys.stdout.write("\033[?1049h")
+    sys.stdout.write("\033[48;2;15;15;35m")
+    sys.stdout.write("\033[2J")
+    sys.stdout.flush()
 
-    demo = create_demo()
+    buf = create_demo()
+    output = buf.render_to_string()
+    sys.stdout.write(output)
+    sys.stdout.flush()
 
-    try:
-        demo.run()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        demo.cleanup()
-        print("\n\nThanks for trying PyOpenTUI! 🚀")
+    sys.stdout.write("\n\n\033[0m")
+    sys.stdout.write("\033[?1049l")
 
 
 if __name__ == "__main__":
