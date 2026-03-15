@@ -175,7 +175,9 @@ def main():
                             name=key.get("name", ""),
                             sequence=key.get("raw", ""),
                         )
-                        focused.handle_key_press(key_event)
+                        handled = focused.handle_key_press(key_event)
+                        if handled:
+                            renderer.request_render()
 
             if renderer._dirty:
                 renderer.render()

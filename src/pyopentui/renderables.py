@@ -21,6 +21,7 @@ class BoxRenderable(Renderable):
         border_color: Optional[RGBA] = None,
         background_color: Optional[RGBA] = None,
         title: Optional[str] = None,
+        focus_color: Optional[RGBA] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(ctx, width=width, height=height, **kwargs)
@@ -29,8 +30,21 @@ class BoxRenderable(Renderable):
         self._border_color = border_color or RGBA.from_values(1, 1, 1, 1)
         self._background_color = background_color
         self._title = title
+        self._focus_color = focus_color or RGBA.from_values(1, 1, 0, 1)
+
+    def _has_focused_child(self) -> bool:
+        for child in self._children:
+            if hasattr(child, "_focused") and child._focused:
+                return True
+            if hasattr(child, "_has_focused_child") and child._has_focused_child():
+                return True
+        return False
 
     def render_self(self, buffer: Buffer, delta_time: float) -> None:
+        border_color = self._border_color
+        if self._has_focused_child() and self._focus_color:
+            border_color = self._focus_color
+
         if self._background_color:
             buffer.fill_rect(
                 self.x,
@@ -38,7 +52,7 @@ class BoxRenderable(Renderable):
                 self.width,
                 self.height,
                 " ",
-                self._border_color,
+                border_color,
                 self._background_color,
             )
 
@@ -49,7 +63,7 @@ class BoxRenderable(Renderable):
                 self.width,
                 self.height,
                 self._title,
-                self._border_color,
+                border_color,
                 self._background_color,
             )
 
@@ -254,18 +268,23 @@ class Input(Renderable):
                     self._value[: self._cursor_position - 1] + self._value[self._cursor_position :]
                 )
                 self._cursor_position -= 1
+            self.request_render()
             return True
         elif key.name == "left":
             self._cursor_position = max(0, self._cursor_position - 1)
+            self.request_render()
             return True
         elif key.name == "right":
             self._cursor_position = min(len(self._value), self._cursor_position + 1)
+            self.request_render()
             return True
         elif key.name == "home":
             self._cursor_position = 0
+            self.request_render()
             return True
         elif key.name == "end":
             self._cursor_position = len(self._value)
+            self.request_render()
             return True
         elif len(key.sequence) == 1:
             new_value = (
@@ -276,6 +295,7 @@ class Input(Renderable):
             if not self._max_length or len(new_value) <= self._max_length:
                 self._value = new_value
                 self._cursor_position += 1
+            self.request_render()
             return True
 
         return False
